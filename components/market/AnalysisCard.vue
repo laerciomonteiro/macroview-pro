@@ -234,7 +234,7 @@ const handleRefresh = () => {
         <!-- Loading Text -->
         <div class="flex items-center gap-2 text-on-surface-variant mb-3">
           <span class="material-symbols-outlined animate-spin text-primary">psychology</span>
-          <span class="text-sm italic">Processando dados macroeconômicos...</span>
+          <span class="text-sm italic">Gerando análise com dados macroeconômicos...</span>
         </div>
       </div>
     </div>
@@ -311,7 +311,7 @@ const handleRefresh = () => {
               </span>
             </h3>
             <p class="text-[10px] sm:text-xs text-on-surface-variant mt-0.5 sm:mt-0">
-              Gerado por Gemini 2.5 • {{ formattedTime }}
+              Gerado por MacroView Pro 1.0 • {{ formattedTime }}
             </p>
           </div>
         </div>
