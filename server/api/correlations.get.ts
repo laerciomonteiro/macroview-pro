@@ -70,9 +70,29 @@ async function fetchYahooFinanceData(symbol: string, range: string = '1mo'): Pro
 }
 
 /**
+ * Calculate Pearson correlation coefficient between two arrays
+ */
+function calculatePearsonCorrelation(x: number[], y: number[]): number {
+  const n = Math.min(x.length, y.length)
+  if (n < 2) return 0
+  
+  const sumX = x.reduce((a, b) => a + b, 0)
+  const sumY = y.reduce((a, b) => a + b, 0)
+  const sumXY = x.slice(0, n).reduce((acc, xi, i) => acc + xi * y[i], 0)
+  const sumX2 = x.slice(0, n).reduce((acc, xi) => acc + xi * xi, 0)
+  const sumY2 = y.slice(0, n).reduce((acc, yi) => acc + yi * yi, 0)
+  
+  const numerator = n * sumXY - sumX * sumY
+  const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY))
+  
+  if (denominator === 0) return 0
+  return numerator / denominator
+}
+
+/**
  * Fetch real Gold and DXY historical data showing inverse correlation
  */
-async function fetchRealGoldDxyData(): Promise<{ gold: ChartDataPoint[]; dxy: ChartDataPoint[] }> {
+async function fetchRealGoldDxyData(): Promise<{ gold: ChartDataPoint[]; dxy: ChartDataPoint[]; correlation: number }> {
   // Fetch both in parallel
   const [goldData, dxyData] = await Promise.all([
     fetchYahooFinanceData('GC=F', '1mo'),
@@ -95,7 +115,11 @@ async function fetchRealGoldDxyData(): Promise<{ gold: ChartDataPoint[]; dxy: Ch
       gold.push({ time: dateStr, value: 1950 + Math.random() * 50 })
       dxy.push({ time: dateStr, value: 104 + Math.random() * 2 })
     }
-    return { gold, dxy }
+    // Calculate correlation for fallback data
+    const goldValues = gold.map(g => g.value)
+    const dxyValues = dxy.map(d => d.value)
+    const correlation = calculatePearsonCorrelation(goldValues, dxyValues)
+    return { gold, dxy, correlation }
   }
   
   // Calculate start index to get last N points
@@ -126,7 +150,12 @@ async function fetchRealGoldDxyData(): Promise<{ gold: ChartDataPoint[]; dxy: Ch
     }
   }
   
-  return { gold, dxy }
+  // Calculate real Pearson correlation
+  const goldValues = gold.map(g => g.value)
+  const dxyValues = dxy.map(d => d.value)
+  const correlation = calculatePearsonCorrelation(goldValues, dxyValues)
+  
+  return { gold, dxy, correlation }
 }
 
 /**

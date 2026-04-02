@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { MarketOverview } from '~/server/types/market'
+import { useMarketStore } from '~/stores/market'
 import { useMacroAnalysis } from '~/composables/useMacroAnalysis'
 
 // Page meta
@@ -66,8 +67,11 @@ const { data: apiResponse, pending, error, refresh } = await useFetch<ApiRespons
   default: () => null,
 })
 
-// Use macro analysis
-const { calculateScenario, getVixLevel, getTrend } = useMacroAnalysis()
+// Use market store for centralized scenario management
+const marketStore = useMarketStore()
+
+// Get trend and VIX level helpers from macro analysis
+const { getVixLevel, getTrend } = useMacroAnalysis()
 
 // Parse market data and calculate scenario
 const marketData = computed(() => {
@@ -289,63 +293,17 @@ const marketCards = computed(() => {
   return cards
 })
 
-// Scenario calculation
-const scenarioResult = computed(() => {
-  if (!marketData.value) return null
-
-  // Build market data object for scenario calculation
-  const data = {
-    usdBrl: {
-      value: usdBrl.value?.value || 0,
-      variation: usdBrl.value?.variation || 0,
-      variationPercent: usdBrl.value?.variationPercent || 0,
-      trend: usdBrl.value?.trend || 'neutral'
-    },
-    dxy: {
-      value: dxyData.value?.value || 0,
-      variation: dxyData.value?.variation || 0,
-      variationPercent: dxyData.value?.variationPercent || 0,
-      trend: dxyData.value?.trend || 'neutral'
-    },
-    vix: {
-      value: vixData.value?.value || 0,
-      variation: vixData.value?.variation || 0,
-      variationPercent: vixData.value?.variationPercent || 0,
-      trend: vixData.value?.trend || 'neutral'
-    },
-    gold: {
-      value: goldData.value?.value || 0,
-      variation: goldData.value?.variation || 0,
-      variationPercent: goldData.value?.variationPercent || 0,
-      trend: goldData.value?.trend || 'neutral'
-    },
-    brent: {
-      value: brentData.value?.value || 0,
-      variation: brentData.value?.variation || 0,
-      variationPercent: brentData.value?.variationPercent || 0,
-      trend: brentData.value?.trend || 'neutral'
-    },
-    ewz: {
-      value: ewzData.value?.value || 0,
-      variation: ewzData.value?.variation || 0,
-      variationPercent: ewzData.value?.variationPercent || 0,
-      trend: ewzData.value?.trend || 'neutral'
-    },
-    treasury10yr: {
-      value: treasury10yrData.value?.value || 0,
-      variation: treasury10yrData.value?.variation || 0,
-      variationPercent: treasury10yrData.value?.variationPercent || 0,
-      trend: treasury10yrData.value?.trend || 'neutral'
-    },
-    ironOre: {
-      value: ironOreData.value?.value || 0,
-      variation: ironOreData.value?.variation || 0,
-      variationPercent: ironOreData.value?.variationPercent || 0,
-      trend: ironOreData.value?.trend || 'neutral'
-    }
+// Sync scenario from API (Gemini) to store for centralized access
+// This ensures MarketScenarioCard and MarketAnalysisCard show the same scenario
+watch(() => analysisData.value?.scenario, (newScenario) => {
+  if (newScenario) {
+    marketStore.setScenarioFromApi(newScenario)
   }
+}, { immediate: true })
 
-  return calculateScenario(data)
+// Scenario result from store (prioritizes API/Gemini, falls back to computed rules)
+const scenarioResult = computed(() => {
+  return marketStore.scenario
 })
 
 // Auto-refresh logic using native Page Visibility API
@@ -423,76 +381,23 @@ const isLoading = computed(() => pending.value || !marketData.value)
 </script>
 
 <template>
-  <div class="min-h-screen bg-background pb-8">
-    <!-- Header -->
-    <header class="border-b border-outline/20 bg-surface/80 backdrop-blur-sm sticky top-0 z-10">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <!-- Logo & Title -->
-          <div class="flex items-center gap-4">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                <svg class="w-6 h-6 text-background" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                </svg>
-              </div>
-              <div>
-                <h1 class="text-xl font-bold text-on-surface">MacroView Pro</h1>
-                <p class="text-xs text-on-surface-variant">Institutional Trading Dashboard</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Time Display & Controls -->
-          <div class="flex items-center gap-4">
-            <UiTimeDisplay
-              :last-update="lastUpdate"
-              :is-refreshing="isRefreshing"
-              :refresh-interval="refreshInterval"
-            />
-
-            <!-- Manual Refresh Button -->
-            <button
-              @click="handleManualRefresh"
-              :disabled="isRefreshing"
-              class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
-                     bg-surface-container hover:bg-surface-container-high border border-outline/20
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <svg
-                :class="['w-4 h-4', isRefreshing && 'animate-spin']"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-              <span class="hidden sm:inline">Atualizar</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-
+  <div class="min-h-screen bg-background pb-16 sm:pb-8">
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-8">
       <!-- Error State -->
-      <div v-if="error" class="mb-8 p-6 rounded-xl bg-secondary/10 border border-secondary/30">
-        <div class="flex items-center gap-3 mb-3">
-          <svg class="w-6 h-6 text-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div v-if="error" class="mb-6 sm:mb-8 p-4 sm:p-6 rounded-xl bg-secondary/10 border border-secondary/30">
+        <div class="flex items-start gap-3 mb-3">
+          <svg class="w-5 sm:w-6 h-5 sm:h-6 text-secondary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
           </svg>
-          <h3 class="text-lg font-semibold text-secondary">Erro ao carregar dados</h3>
+          <div>
+            <h3 class="text-base sm:text-lg font-semibold text-secondary">Erro ao carregar dados</h3>
+            <p class="text-sm text-on-surface mt-1">{{ error.message || 'Não foi possível obter os dados do mercado.' }}</p>
+          </div>
         </div>
-        <p class="text-sm text-on-surface mb-4">{{ error.message || 'Não foi possível obter os dados do mercado.' }}</p>
         <button
           @click="handleManualRefresh"
-          class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
+          class="ml-8 sm:ml-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium
                  bg-secondary/20 hover:bg-secondary/30 text-secondary transition-colors"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -503,38 +408,29 @@ const isLoading = computed(() => pending.value || !marketData.value)
       </div>
 
       <!-- Scenario Card -->
-      <section v-if="!error && scenarioResult" class="mb-8">
+      <section v-if="!error" class="mb-6 sm:mb-8">
         <MarketScenarioCard
-          :scenario="scenarioResult.scenario"
-          :interpretation="scenarioResult.interpretation"
-          :signals="scenarioResult.signals"
-          :loading="isLoading"
+          :scenario="scenarioResult?.scenario ?? 'Neutro'"
+          :interpretation="scenarioResult?.interpretation ?? ''"
+          :signals="scenarioResult?.signals ?? []"
+          :loading="isLoading || !scenarioResult"
         />
       </section>
 
-      <!-- Scenario Loading -->
-      <section v-if="!error && !scenarioResult" class="mb-8">
-        <div class="h-48 rounded-xl bg-surface-container border border-outline/20 animate-pulse" />
-      </section>
-
       <!-- AI Analysis Card -->
-      <section class="mb-8">
+      <section class="mb-6 sm:mb-8">
         <MarketAnalysisCard
-          v-if="analysisData"
-          :analysis="analysisData.analysis"
-          :scenario="analysisData.scenario"
-          :generated-at="analysisData.generatedAt"
+          :analysis="analysisData?.analysis ?? ''"
+          :scenario="analysisData?.scenario ?? 'Neutro'"
+          :generated-at="analysisData?.generatedAt ?? null"
           :loading="analysisPending"
           :error="analysisError ? (analysisError.message || 'Erro ao carregar análise') : null"
           @refresh="handleAnalysisRefresh"
         />
-        <div v-else-if="analysisPending" class="rounded-xl bg-surface-container border border-outline/20 animate-pulse">
-          <div class="h-64" />
-        </div>
       </section>
 
       <!-- Section Title -->
-      <div class="mb-6">
+      <div class="mb-4 sm:mb-6">
         <h2 class="text-lg font-semibold text-on-surface">Métricas do Mercado</h2>
         <p class="text-sm text-on-surface-variant">Dados atualizados em tempo real</p>
       </div>
@@ -546,11 +442,11 @@ const isLoading = computed(() => pending.value || !marketData.value)
       />
 
       <!-- No Data Message -->
-      <div v-if="!isLoading && marketCards.length === 0 && !error" class="mt-8 text-center py-12">
-        <svg class="w-16 h-16 mx-auto text-on-surface-variant/40 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div v-if="!isLoading && marketCards.length === 0 && !error" class="mt-6 sm:mt-8 text-center py-8 sm:py-12">
+        <svg class="w-12 sm:w-16 h-12 sm:h-16 mx-auto text-on-surface-variant/40 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
         </svg>
-        <h3 class="text-lg font-medium text-on-surface mb-2">Nenhum dado disponível</h3>
+        <h3 class="text-base sm:text-lg font-medium text-on-surface mb-2">Nenhum dado disponível</h3>
         <p class="text-sm text-on-surface-variant mb-4">Tente atualizar a página para obter os dados mais recentes.</p>
         <button
           @click="handleManualRefresh"
@@ -565,10 +461,11 @@ const isLoading = computed(() => pending.value || !marketData.value)
       </div>
 
       <!-- Footer Info -->
-      <div class="mt-12 pt-6 border-t border-outline/10">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 text-xs text-on-surface-variant">
-          <div class="flex items-center gap-4">
-            <span>Dados de mercado fornecidos por Yahoo Finance e AwesomeAPI</span>
+      <div class="mt-8 sm:mt-12 pt-4 sm:pt-6 border-t border-outline/10">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4 text-xs text-on-surface-variant">
+          <div class="flex items-center gap-2 sm:gap-4">
+            <span class="hidden sm:inline">Dados de mercado fornecidos por Yahoo Finance e AwesomeAPI</span>
+            <span class="sm:hidden">Dados: Yahoo Finance</span>
           </div>
           <div class="flex items-center gap-2">
             <span
@@ -581,6 +478,6 @@ const isLoading = computed(() => pending.value || !marketData.value)
           </div>
         </div>
       </div>
-    </main>
+    </div>
   </div>
 </template>

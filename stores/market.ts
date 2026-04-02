@@ -17,6 +17,7 @@ interface MarketState {
   isLoading: boolean
   error: string | null
   refreshInterval: number
+  apiScenario: ScenarioResult | null  // Stores scenario from Gemini API
 }
 
 export const useMarketStore = defineStore('market', {
@@ -26,6 +27,7 @@ export const useMarketStore = defineStore('market', {
     isLoading: false,
     error: null,
     refreshInterval: 60000, // 60 seconds
+    apiScenario: null,
   }),
 
   getters: {
@@ -38,9 +40,15 @@ export const useMarketStore = defineStore('market', {
     },
 
     /**
-     * Current market scenario (computed from market data)
+     * Current market scenario (prioritizes API/Gemini, falls back to computed from market data)
      */
     scenario(): ScenarioResult | null {
+      // Prioritize API scenario from Gemini if available
+      if (this.apiScenario) {
+        return this.apiScenario
+      }
+      
+      // Fall back to computed scenario from market data
       if (!this.marketData?.riskIndicators) return null
       
       const { vix, dxy } = this.marketData.riskIndicators
@@ -284,6 +292,38 @@ export const useMarketStore = defineStore('market', {
      */
     async initializeMarketData(): Promise<void> {
       await this.fetchMarketOverview()
+    },
+
+    /**
+     * Set scenario from Gemini API analysis
+     * This allows the API-determined scenario to take precedence over computed rules
+     */
+    setScenarioFromApi(scenarioType: 'Risk-On' | 'Risk-Off' | 'Neutro'): void {
+      const scenarioMap: Record<string, ScenarioResult> = {
+        'Risk-On': {
+          scenario: 'Risk-On',
+          color: '#4edea3',
+          signals: ['VIX em queda', 'Dólar enfraquecendo', 'Apetite ao risco global'],
+          interpretation: 'Mercado busca risco em emergentes. Alta probabilidade de WIN subir durante o pregão.',
+          confidence: 88
+        },
+        'Risk-Off': {
+          scenario: 'Risk-Off',
+          color: '#ffb2b7',
+          signals: ['VIX em alta', 'Dólar fortalecendo', 'Fuga para segurança'],
+          interpretation: 'Mercado em modo de aversão a risco. Protect assets em alta.',
+          confidence: 85
+        },
+        'Neutro': {
+          scenario: 'Neutro',
+          color: '#f9bd22',
+          signals: ['VIX estável', 'Dólar lateral', 'Aguardando direção'],
+          interpretation: 'Mercado em modo neutro. Aguardando catalisadores para direção.',
+          confidence: 65
+        }
+      }
+      
+      this.apiScenario = scenarioMap[scenarioType] || null
     }
   }
 })

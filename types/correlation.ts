@@ -79,6 +79,7 @@ export interface CorrelationData {
   goldDxyChartData: {
     gold: ChartDataPoint[]
     dxy: ChartDataPoint[]
+    correlation: number
   }
   lastUpdate: number
   currentData: CurrentMarketData

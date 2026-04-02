@@ -5,11 +5,32 @@ interface Props {
   type: 'inverse' | 'direct'
   goldData: ChartDataPoint[]
   dxyData: ChartDataPoint[]
+  correlationStrength?: number
   loading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  loading: false
+  loading: false,
+  correlationStrength: -0.92
+})
+
+// Dynamic correlation strength text with sign
+const correlationPercent = computed(() => {
+  const value = props.correlationStrength * 100
+  const sign = value > 0 ? '+' : ''
+  return `${sign}${value.toFixed(0)}`
+})
+
+// Check if correlation is inverse (negative) or direct (positive)
+const isInverseCorrelation = computed(() => props.correlationStrength < 0)
+
+// Dynamic insight text based on correlation type
+const insightText = computed(() => {
+  if (props.type === 'inverse') {
+    return 'Correlação inversa: Quando Ouro sobe e DXY cai, sinaliza dólar fraco globalmente. Ativos de risco tendem a ganhar tração no curto prazo.'
+  } else {
+    return 'Correlação direta: Ouro e DXY tendem a se mover juntos. Força do dólar reflete aversão a risco.'
+  }
 })
 
 // Generate SVG path from data points
@@ -133,8 +154,13 @@ const dateLabels = computed(() => {
         </h3>
       </div>
       <div class="flex items-center gap-3">
-        <span class="px-3 py-1 bg-primary/10 text-primary rounded-full text-[10px] font-bold border border-primary/20">
-          92% Força da Correlação
+        <span 
+          class="px-3 py-1 rounded-full text-[10px] font-bold border"
+          :class="isInverseCorrelation 
+            ? 'bg-secondary/10 text-secondary border-secondary/20' 
+            : 'bg-primary/10 text-primary border-primary/20'"
+        >
+          {{ correlationPercent }}% Correlação
         </span>
       </div>
     </div>
@@ -209,10 +235,20 @@ const dateLabels = computed(() => {
         </div>
       </div>
 
-      <!-- Inverse Indicator -->
+      <!-- Inverse/Direct Indicator (Dynamic) -->
       <div class="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-high/80 backdrop-blur-sm border border-outline/20">
-        <span class="material-symbols-outlined text-xs text-secondary">sync_alt</span>
-        <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Inversa</span>
+        <span 
+          class="material-symbols-outlined text-xs" 
+          :class="isInverseCorrelation ? 'text-secondary' : 'text-primary'"
+        >
+          {{ isInverseCorrelation ? 'sync_alt' : 'trending_up' }}
+        </span>
+        <span 
+          class="text-[10px] font-bold uppercase tracking-wider"
+          :class="isInverseCorrelation ? 'text-secondary' : 'text-primary'"
+        >
+          {{ isInverseCorrelation ? 'INVERSA' : 'DIRETA' }}
+        </span>
       </div>
     </div>
 
@@ -220,7 +256,7 @@ const dateLabels = computed(() => {
     <div class="mt-4 p-3 rounded-lg bg-surface-container border-l-4 border-primary">
       <p class="text-xs text-on-surface-variant leading-relaxed">
         <span class="text-primary font-semibold">Correlação Ouro vs Dólar:</span>
-        Quando Ouro sobe e DXY cai, sinaliza dólar fraco globalmente. Ativos de risco tendem a ganhar tração no curto prazo.
+        {{ insightText }}
       </p>
     </div>
   </div>

@@ -95,6 +95,19 @@ const handleRefresh = () => {
 </script>
 
 <style scoped>
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 1.5s infinite;
+}
+
 .analysis-content {
   font-size: 0.9rem;
   line-height: 1.6;
@@ -204,24 +217,33 @@ const handleRefresh = () => {
     class="relative overflow-hidden rounded-xl border transition-all duration-300
            bg-surface-container border-outline/20"
   >
-    <!-- Loading State -->
-    <div v-if="loading" class="p-6 space-y-4">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-surface-bright/20 animate-pulse" />
-          <div class="space-y-2">
-            <div class="w-32 h-5 rounded bg-surface-bright/20 animate-pulse" />
-            <div class="w-24 h-4 rounded bg-surface-bright/20 animate-pulse" />
+    <!-- Loading State - Creative Indicator -->
+    <div v-if="loading" class="p-6 sm:p-8">
+      <div class="flex flex-col items-center justify-center py-8">
+        <!-- Animated AI Icon -->
+        <div class="relative mb-5">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center">
+            <span class="material-symbols-outlined text-3xl text-primary" style="font-variation-settings: 'FILL' 1;">
+              auto_awesome
+            </span>
           </div>
+          <!-- Pulsing ring -->
+          <div class="absolute -inset-2 rounded-2xl bg-primary/10 animate-ping" style="animation-duration: 1.5s;" />
         </div>
-        <div class="w-20 h-8 rounded bg-surface-bright/20 animate-pulse" />
-      </div>
-      <div class="space-y-3">
-        <div class="w-full h-4 rounded bg-surface-bright/20 animate-pulse" />
-        <div class="w-full h-4 rounded bg-surface-bright/20 animate-pulse" />
-        <div class="w-3/4 h-4 rounded bg-surface-bright/20 animate-pulse" />
-        <div class="w-full h-4 rounded bg-surface-bright/20 animate-pulse" />
-        <div class="w-1/2 h-4 rounded bg-surface-bright/20 animate-pulse" />
+        
+        <!-- Loading Text -->
+        <div class="flex items-center gap-2 text-on-surface-variant mb-3">
+          <span class="material-symbols-outlined animate-spin text-primary">psychology</span>
+          <span class="text-sm italic">Processando dados macroeconômicos...</span>
+        </div>
+        
+        <!-- Subtle shimmer effect -->
+        <div class="w-full max-w-md h-2 rounded-full bg-surface-bright/10 overflow-hidden">
+          <div 
+            class="h-full bg-gradient-to-r from-primary/0 via-primary/60 to-primary/0 animate-shimmer rounded-full"
+            style="animation: shimmer 1.5s infinite;"
+          />
+        </div>
       </div>
     </div>
 
@@ -265,15 +287,15 @@ const handleRefresh = () => {
     </div>
 
     <!-- Content -->
-    <div v-else class="p-6">
+    <div v-else class="p-4 sm:p-6">
       <!-- Header -->
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-3">
+      <div class="flex items-start justify-between mb-3 sm:mb-4">
+        <div class="flex items-start gap-3">
           <!-- AI Icon -->
           <div
-            class="flex items-center justify-center w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30"
+            class="flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex-shrink-0"
           >
-            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-4 h-4 sm:w-5 sm:h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -283,19 +305,20 @@ const handleRefresh = () => {
             </svg>
           </div>
 
-          <div>
-            <h3 class="text-lg font-semibold text-on-surface flex items-center gap-2">
-              Análise do Mercado
+          <div class="min-w-0">
+            <h3 class="text-base sm:text-lg font-semibold text-on-surface flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <span class="hidden sm:inline">Análise do Mercado</span>
+              <span class="sm:hidden text-sm">Análise</span>
               <span
-                class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
+                class="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 rounded text-[10px] sm:text-xs font-medium w-fit"
                 :class="scenarioConfig.bgColor"
                 :style="{ color: scenarioConfig.color }"
               >
                 <span>{{ scenarioConfig.icon }}</span>
-                {{ scenarioConfig.label }}
+                <span class="hidden xs:inline">{{ scenarioConfig.label }}</span>
               </span>
             </h3>
-            <p class="text-xs text-on-surface-variant">
+            <p class="text-[10px] sm:text-xs text-on-surface-variant mt-0.5 sm:mt-0">
               Gerado por Gemini 2.5 • {{ formattedTime }}
             </p>
           </div>
@@ -305,13 +328,13 @@ const handleRefresh = () => {
         <button
           @click="handleRefresh"
           :disabled="isRefreshing"
-          class="inline-flex items-center justify-center w-9 h-9 rounded-lg
+          class="inline-flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-lg
                  bg-surface-container-high hover:bg-surface-bright/10 border border-outline/20
-                 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex-shrink-0"
           title="Regenerar análise"
         >
           <svg
-            :class="['w-4 h-4 text-on-surface-variant', isRefreshing && 'animate-spin']"
+            :class="['w-3.5 h-3.5 sm:w-4 sm:h-4 text-on-surface-variant', isRefreshing && 'animate-spin']"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -327,23 +350,23 @@ const handleRefresh = () => {
       </div>
 
       <!-- Analysis Content -->
-      <div class="p-4 rounded-lg bg-surface-lowest/50 border border-outline/10">
+      <div class="p-3 sm:p-4 rounded-lg bg-surface-lowest/50 border border-outline/10">
         <div 
           ref="contentRef"
-          class="analysis-content text-sm text-on-surface leading-relaxed transition-all duration-300"
-          :class="{ 'max-h-[400px] overflow-y-auto pr-2': !isExpanded }"
+          class="analysis-content text-xs sm:text-sm text-on-surface leading-relaxed transition-all duration-300"
+          :class="{ 'max-h-[200px] sm:max-h-[400px] overflow-y-auto pr-2': !isExpanded }"
           v-html="analysis"
         />
         <!-- Ver mais button -->
         <button
           v-if="hasOverflow || isExpanded"
           @click="isExpanded = !isExpanded"
-          class="mt-2 w-full py-2 text-sm font-medium text-primary hover:text-primary/80 
+          class="mt-2 w-full py-2 text-xs sm:text-sm font-medium text-primary hover:text-primary/80 
                  transition-colors flex items-center justify-center gap-1"
         >
           <span>{{ isExpanded ? 'Ver menos' : 'Ver mais' }}</span>
           <svg 
-            class="w-4 h-4 transition-transform duration-300" 
+            class="w-3 h-3 sm:w-4 sm:h-4 transition-transform duration-300" 
             :class="{ 'rotate-180': isExpanded }"
             fill="none" 
             stroke="currentColor" 
@@ -355,9 +378,9 @@ const handleRefresh = () => {
       </div>
 
       <!-- Footer Info -->
-      <div class="mt-4 pt-4 border-t border-outline/10 flex items-center justify-between">
-        <div class="flex items-center gap-2 text-xs text-on-surface-variant">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-outline/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
+        <div class="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-on-surface-variant">
+          <svg class="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -367,7 +390,7 @@ const handleRefresh = () => {
           </svg>
           <span>Análise gerada por IA - não é aconselhamento financeiro</span>
         </div>
-        <div class="flex items-center gap-1 text-xs text-on-surface-variant">
+        <div class="flex items-center gap-1 text-[10px] sm:text-xs text-on-surface-variant">
           <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
           <span>Ao vivo</span>
         </div>

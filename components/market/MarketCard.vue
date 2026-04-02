@@ -109,20 +109,20 @@ const cardGlow = computed(() => {
     </div>
 
     <!-- Content -->
-    <div v-else class="p-5">
+    <div v-else class="p-4 sm:p-5">
       <!-- Header with Icon -->
-      <div class="flex items-center gap-3 mb-4">
+      <div class="flex items-center gap-3 mb-3 sm:mb-4">
         <div
           :class="[
-            'flex items-center justify-center w-10 h-10 rounded-lg',
+            'flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg',
             'bg-surface-bright/10 border border-outline/10',
             'group-hover:border-primary/30 transition-colors'
           ]"
         >
-          <span v-if="icon" class="text-lg">{{ icon }}</span>
+          <span v-if="icon" class="text-base sm:text-lg">{{ icon }}</span>
           <svg
             v-else
-            class="w-5 h-5 text-on-surface-variant"
+            class="w-4 sm:w-5 h-4 sm:h-5 text-on-surface-variant"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -135,21 +135,21 @@ const cardGlow = computed(() => {
             />
           </svg>
         </div>
-        <span class="text-sm font-medium text-on-surface-variant uppercase tracking-wide">
+        <span class="text-xs sm:text-sm font-medium text-on-surface-variant uppercase tracking-wide truncate">
           {{ title }}
         </span>
       </div>
 
       <!-- Value -->
-      <div class="mb-3">
-        <span class="text-3xl font-bold font-mono text-on-surface">
+      <div class="mb-2 sm:mb-3">
+        <span class="text-2xl sm:text-3xl font-bold font-mono text-on-surface">
           {{ formattedValue }}
         </span>
-        <span v-if="unit" class="ml-1 text-lg text-on-surface-variant">{{ unit }}</span>
+        <span v-if="unit" class="ml-1 text-sm sm:text-lg text-on-surface-variant">{{ unit }}</span>
       </div>
 
       <!-- Sparkline -->
-      <div v-if="sparklineData && sparklineData.length > 0" class="h-12 mb-3">
+      <div v-if="sparklineData && sparklineData.length > 0" class="h-10 sm:h-12 mb-2 sm:mb-3">
         <SparklineChart
           :data="sparklineData"
           :color="trend === 'up' ? '#4edea3' : trend === 'down' ? '#ffb2b7' : '#86948a'"
@@ -158,22 +158,23 @@ const cardGlow = computed(() => {
       </div>
 
       <!-- Variation -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1 sm:gap-2">
         <span
           :class="[
-            'inline-flex items-center gap-1 px-2 py-1 rounded-md text-sm font-medium',
+            'inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md text-xs sm:text-sm font-medium',
             trend === 'up' && 'bg-primary/10 text-primary',
             trend === 'down' && 'bg-secondary/10 text-secondary',
             trend === 'neutral' && 'bg-on-surface-variant/10 text-on-surface-variant'
           ]"
         >
           <span>{{ arrowIcon }}</span>
-          <span>{{ formattedVariation }}</span>
+          <span class="hidden xs:inline">{{ formattedVariation }}</span>
+          <span class="xs:inline text-[10px] sm:text-xs">{{ formattedVariation.substring(0, 6) }}</span>
         </span>
         <span
           v-if="formattedPercent"
           :class="[
-            'text-sm font-medium',
+            'text-xs sm:text-sm font-medium hidden sm:inline',
             trend === 'up' && 'text-primary',
             trend === 'down' && 'text-secondary',
             trend === 'neutral' && 'text-on-surface-variant'
@@ -184,7 +185,7 @@ const cardGlow = computed(() => {
       </div>
 
       <!-- VIX Level Indicator -->
-      <div v-if="vixLevel" class="mt-3 flex items-center gap-2">
+      <div v-if="vixLevel" class="mt-2 sm:mt-3 flex items-center gap-2">
         <span
           :class="[
             'w-2 h-2 rounded-full animate-pulse',

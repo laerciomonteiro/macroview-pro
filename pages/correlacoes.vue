@@ -11,6 +11,7 @@ const correlations = computed<CorrelationItem[]>(() => apiData.value?.data?.corr
 const scenarios = computed<ScenarioDetail[]>(() => apiData.value?.data?.scenarios || [])
 const goldChartData = computed<ChartDataPoint[]>(() => apiData.value?.data?.goldDxyChartData?.gold || [])
 const dxyChartData = computed<ChartDataPoint[]>(() => apiData.value?.data?.goldDxyChartData?.dxy || [])
+const goldDxyCorrelation = computed<number>(() => apiData.value?.data?.goldDxyChartData?.correlation ?? -0.92)
 
 // Real market data from API
 const currentData = computed<CurrentMarketData>(() => apiData.value?.data?.currentData || {
@@ -120,6 +121,7 @@ useHead({
             type="inverse"
             :gold-data="goldChartData"
             :dxy-data="dxyChartData"
+            :correlation-strength="goldDxyCorrelation"
           />
         </div>
 
