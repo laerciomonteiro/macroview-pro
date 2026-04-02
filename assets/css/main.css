@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * MacroView Pro - Global Styles
+ * Trading Terminal Dark Theme
+ */
+
+@layer base {
+  body {
+    @apply bg-background text-on-surface antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  /* Card Components */
+  .card-surface {
+    @apply bg-surface-container-low rounded-xl p-5 transition-all duration-300;
+  }
+
+  .card-surface-hover {
+    @apply hover:bg-surface-container-high;
+  }
+
+  /* Navigation Items */
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-container transition-colors;
+  }
+
+  .nav-item-active {
+    @apply text-primary bg-surface-container-low border-r-4 border-primary;
+  }
+
+  /* Market Status Indicators */
+  .status-dot {
+    @apply relative inline-flex h-2 w-2;
+  }
+
+  .status-dot-ping {
+    @apply animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75;
+  }
+
+  .status-dot-solid {
+    @apply relative inline-flex rounded-full h-2 w-2 bg-primary;
+  }
+
+  /* Variation Colors */
+  .variation-positive {
+    @apply text-primary;
+  }
+
+  .variation-negative {
+    @apply text-secondary;
+  }
+
+  .variation-stable {
+    @apply text-outline;
+  }
+
+  /* Ticker Animation */
+  .animate-marquee {
+    display: flex;
+    width: 200%;
+    animation: marquee 30s linear infinite;
+  }
+
+  .animate-marquee:hover {
+    animation-play-state: paused;
+  }
+
+  @keyframes marquee {
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
+}
+
+@layer utilities {
+  /* Custom Scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #3c4a42 #0b1326;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: #0b1326;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #3c4a42;
+    border-radius: 3px;
+  }
+
+  /* Glow Effects */
+  .glow-primary {
+    box-shadow: 0 0 30px rgba(78, 222, 163, 0.05);
+  }
+
+  .glow-primary-strong {
+    box-shadow: 0 0 10px rgba(78, 222, 163, 0.3);
+  }
+}
