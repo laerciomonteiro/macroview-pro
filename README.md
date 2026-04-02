@@ -480,8 +480,8 @@ MIT License - Uso livre para fins educacionais e comerciais.
 
 ## Créditos
 
-- **Metodologia de Trading**: Diego Bessil
-- **Desenvolvimento**: Equipe MacroView
+- **Metodologia de Trading**: Diego Bessil - TSR Investimentos
+- **Desenvolvimento**: Laercio Monteiro - Sócio-trader na TSR Investimentos
 - **APIs de Dados**: AwesomeAPI, Yahoo Finance, Twelve Data, Commodities-API
 
 ---
