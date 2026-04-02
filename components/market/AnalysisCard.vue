@@ -23,6 +23,37 @@ const isExpanded = ref(false)
 const contentRef = ref<HTMLElement | null>(null)
 const hasOverflow = ref(false)
 
+// Simulated progress from 0 to 100%
+const loadingProgress = ref(0)
+let progressInterval: ReturnType<typeof setInterval> | null = null
+
+onUnmounted(() => {
+  if (progressInterval) {
+    clearInterval(progressInterval)
+  }
+})
+
+// Sincronizar animação com estado real de loading
+watch(() => props.loading, (isLoading) => {
+  if (isLoading) {
+    // INICIAR animação - resetar e começar
+    loadingProgress.value = 0
+    progressInterval = setInterval(() => {
+      if (loadingProgress.value < 90) {
+        loadingProgress.value += Math.random() * 15
+      }
+    }, 500)
+  } else {
+    // PARAR animação - ir para 100%
+    if (progressInterval) {
+      clearInterval(progressInterval)
+      progressInterval = null
+    }
+    loadingProgress.value = 100
+    setTimeout(() => { loadingProgress.value = 0 }, 500)
+  }
+})
+
 const checkOverflow = () => {
   if (contentRef.value) {
     hasOverflow.value = contentRef.value.scrollHeight > contentRef.value.clientHeight
@@ -237,12 +268,18 @@ const handleRefresh = () => {
           <span class="text-sm italic">Processando dados macroeconômicos...</span>
         </div>
         
-        <!-- Subtle shimmer effect -->
-        <div class="w-full max-w-md h-2 rounded-full bg-surface-bright/10 overflow-hidden">
-          <div 
-            class="h-full bg-gradient-to-r from-primary/0 via-primary/60 to-primary/0 animate-shimmer rounded-full"
-            style="animation: shimmer 1.5s infinite;"
-          />
+        <!-- Percentage Progress Bar -->
+        <div class="w-full max-w-md mt-4">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-on-surface-variant">Progresso</span>
+            <span class="text-xs font-mono text-primary">{{ Math.round(loadingProgress) }}%</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-surface-bright/10 overflow-hidden">
+            <div 
+              class="h-full bg-gradient-to-r from-primary to-primary/80 rounded-full transition-all duration-300 ease-out"
+              :style="{ width: `${loadingProgress}%` }"
+            />
+          </div>
         </div>
       </div>
     </div>
