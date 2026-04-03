@@ -3,6 +3,8 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import type { MarketOverview } from '~/server/types/market'
 import { useMarketStore } from '~/stores/market'
 import { useMacroAnalysis } from '~/composables/useMacroAnalysis'
+import { useNewsAnalysisSync } from '~/composables/useNewsAnalysisSync'
+import NewsRefreshButton from '~/components/news/NewsRefreshButton.vue'
 
 // Page meta
 definePageMeta({
@@ -44,6 +46,16 @@ const analysisData = computed(() => {
 const handleAnalysisRefresh = () => {
   refreshAnalysis()
 }
+
+// News analysis sync - auto-refresh AI when news is updated
+const newsSync = useNewsAnalysisSync()
+
+// Watch for news refresh trigger
+watch(() => newsSync.shouldRefreshAnalysis.value, (shouldRefresh) => {
+  if (shouldRefresh && !analysisPending.value) {
+    refreshAnalysis()
+  }
+})
 
 // Refs
 const lastUpdate = ref<Date | null>(null)
@@ -427,6 +439,9 @@ const isLoading = computed(() => pending.value || !marketData.value)
           :error="analysisError ? (analysisError.message || 'Erro ao carregar análise') : null"
           @refresh="handleAnalysisRefresh"
         />
+        <div class="mt-4 flex justify-end">
+          <NewsRefreshButton />
+        </div>
       </section>
 
       <!-- Section Title -->

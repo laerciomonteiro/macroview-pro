@@ -34,15 +34,20 @@ export interface MarketDataForAnalysis {
   usdBrl: number
   treasury: number
   scenario: 'Risk-On' | 'Risk-Off' | 'Neutro'
+  newsContext?: string
 }
 
 /**
  * Build a concise prompt for Gemini for day traders
  */
 function buildAnalysisPrompt(data: MarketDataForAnalysis): string {
+  const newsSection = data.newsContext
+    ? `\n\n## NOTÍCIAS RECENTES:\n${data.newsContext}`
+    : ''
+
   return `Gere uma análise macroeconômica BREVE e DIRETA para day traders de WDO e WIN.
 
-Dados: VIX=${data.vix.toFixed(2)} (${data.vixInterpretation}), DXY=${data.dxy.toFixed(2)}, Ouro=${data.gold.toFixed(2)}, Brent=${data.brent.toFixed(2)}, USD/BRL=${data.usdBrl.toFixed(4)}, Treasury 10YR=${data.treasury.toFixed(3)}%, Cenário=${data.scenario}.
+Dados: VIX=${data.vix.toFixed(2)} (${data.vixInterpretation}), DXY=${data.dxy.toFixed(2)}, Ouro=${data.gold.toFixed(2)}, Brent=${data.brent.toFixed(2)}, USD/BRL=${data.usdBrl.toFixed(4)}, Treasury 10YR=${data.treasury.toFixed(3)}%, Cenário=${data.scenario}.${newsSection}
 
 Estrutura Obrigatória (máximo 400 palavras no total):
 1. CENÁRIO: [2 linhas] Resumo do cenário atual
@@ -50,7 +55,7 @@ Estrutura Obrigatória (máximo 400 palavras no total):
 3. DIREÇÃO: [WIN e WDO] Alta, Baixa ou Lateral com rationale em 1 linha cada
 4. ALERTAS: [2 bullets] O que pode mudar o cenário hoje
 
-Seja extremamente objetivo. Sem títulos elaborados. Sem explicações extensas.
+Seja extremamente objetivo. Use as notícias para enriquecer a análise. Sem títulos elaborados.
 Formato de saída livre mas MÁXIMO 400 palavras.`
 }
 

@@ -26,6 +26,8 @@ export default defineNuxtConfig({
     marketApiKey: process.env.MARKET_API_KEY || '',
     marketApiSecret: process.env.MARKET_API_SECRET || '',
     twelveDataApiKey: process.env.TWELVE_DATA_API_KEY || '',
+    currentsApiKey: process.env.CURRENTS_API_KEY || '',
+    guardianApiKey: process.env.GUARDIAN_API_KEY || '',
     
     // Public keys (exposed to frontend)
     public: {

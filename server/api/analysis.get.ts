@@ -10,6 +10,7 @@
 
 import { defineEventHandler, createError } from 'h3'
 import type { ApiResponse, MarketOverview } from '../types/market'
+import type { NewsApiResponse } from '../../types/news'
 import { withCache, setCacheHeaders } from '../utils/cache'
 import { generateMarketAnalysis, validateMarketData, type MarketDataForAnalysis } from '../utils/gemini'
 import { parseMarkdown } from '../utils/markdown'
@@ -136,14 +137,42 @@ async function fetchFreshAnalysis(): Promise<{
     throw new Error('Invalid market data for analysis')
   }
 
+  // Fetch news context for enriched analysis
+  const newsContext = await getNewsContext()
+
   // Generate analysis using Gemini
-  const analysis = await generateMarketAnalysis(marketData)
+  const analysis = await generateMarketAnalysis({
+    ...marketData,
+    newsContext
+  })
 
   return {
     analysis,
     generatedAt: Date.now(),
     scenario: marketData.scenario
   }
+}
+
+/**
+ * Fetch news context from the news endpoint
+ */
+async function getNewsContext(): Promise<string> {
+  try {
+    // Call our news endpoint
+    const response = await $fetch<NewsApiResponse>('/api/news/latest')
+    if (response.success && response.data.articles.length > 0) {
+      const articles = response.data.articles
+        .filter((a) => a.relevanceScore >= 0.7)
+        .slice(0, 5)
+
+      return articles.map((a) =>
+        `- ${a.source.name}: ${a.title}`
+      ).join('\n')
+    }
+  } catch (err) {
+    console.warn('[Analysis] News fetch failed:', err)
+  }
+  return ''
 }
 
 export interface AnalysisResponse {
