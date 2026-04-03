@@ -105,7 +105,7 @@
               <span class="status-dot-solid" :class="isMarketOpen ? 'bg-[#4edea3]' : 'bg-[#ffb2b7]'"></span>
             </span>
             <span class="hidden md:inline text-outline">Status do mercado:</span>
-            <span :class="marketStatusColor">{{ marketStatus.isHoliday ? marketStatus.holidayName : (marketStatus.isOpen ? 'Aberto' : 'Fechado') }}</span>
+            <span :class="marketStatusColor">{{ marketStatus.isOpen ? 'Aberto' : 'Fechado' }}{{ marketStatus.isHoliday ? ' - ' + marketStatus.holidayName : '' }}</span>
           </div>
           <div class="text-outline font-mono text-xs">{{ currentUtcTime }}</div>
         </div>
