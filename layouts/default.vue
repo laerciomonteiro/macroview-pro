@@ -23,7 +23,7 @@
             <span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">terminal</span>
           </div>
           <div>
-            <h1 class="text-lg font-bold text-primary">MacroView</h1>
+            <h1 class="text-lg font-bold text-primary">MacroView Pro 1.0</h1>
             <p class="text-[10px] uppercase tracking-widest text-outline">Análise de Mercado</p>
           </div>
         </div>
@@ -105,7 +105,7 @@
               <span class="status-dot-solid" :class="isMarketOpen ? 'bg-[#4edea3]' : 'bg-[#ffb2b7]'"></span>
             </span>
             <span class="hidden md:inline text-outline">Status do mercado:</span>
-            <span :class="marketStatusColor">{{ marketStatusText }}</span>
+            <span :class="marketStatusColor">{{ marketStatus.isHoliday ? marketStatus.holidayName : (marketStatus.isOpen ? 'Aberto' : 'Fechado') }}</span>
           </div>
           <div class="text-outline font-mono text-xs">{{ currentUtcTime }}</div>
         </div>
@@ -224,26 +224,84 @@ const isRefreshing = ref(false)
 // Computed
 const currentScenario = computed(() => marketStore.scenario?.scenario || 'Loading...')
 
-/**
- * Market Status (Brazilian WDO/WIN hours: Mon-Fri 9:00-18:00 Brasília time)
- */
-const isMarketOpen = computed(() => {
+// B3 holidays 2026 (from ANBIMA)
+const B3_HOLIDAYS = [
+  '2026-01-01', '2026-02-16', '2026-02-17', '2026-04-03',
+  '2026-04-21', '2026-05-01', '2026-06-04', '2026-09-07',
+  '2026-10-12', '2026-11-02', '2026-11-15', '2026-11-20',
+  '2026-12-25'
+]
+
+const isHoliday = (dateStr: string): boolean => {
+  return B3_HOLIDAYS.includes(dateStr)
+}
+
+const getHolidayName = (dateStr: string): string => {
+  const holidays: Record<string, string> = {
+    '2026-01-01': 'Confraternização Universal',
+    '2026-02-16': 'Carnaval',
+    '2026-02-17': 'Carnaval',
+    '2026-04-03': 'Paixão de Cristo',
+    '2026-04-21': 'Tiradentes',
+    '2026-05-01': 'Dia do Trabalho',
+    '2026-06-04': 'Corpus Christi',
+    '2026-09-07': 'Independência do Brasil',
+    '2026-10-12': 'Nossa Senhora Aparecida',
+    '2026-11-02': 'Finados',
+    '2026-11-15': 'Proclamação da República',
+    '2026-11-20': 'Dia Nacional de Zumbi',
+    '2026-12-25': 'Natal',
+  }
+  return holidays[dateStr] || 'Feriado'
+}
+
+const getMarketStatus = () => {
   const now = new Date()
-  
-  // Get current time in Brasília timezone (GMT-3)
   const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
+  
   const dayOfWeek = brasiliaTime.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
   const hour = brasiliaTime.getHours()
   
-  // Market is open Monday (1) to Friday (5), 9:00 to 17:59 (hour 9-17)
-  const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5
+  // Format date as YYYY-MM-DD in Brasília time
+  const year = brasiliaTime.getFullYear()
+  const month = String(brasiliaTime.getMonth() + 1).padStart(2, '0')
+  const day = String(brasiliaTime.getDate()).padStart(2, '0')
+  const dateStr = `${year}-${month}-${day}`
+  
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+  const isHolidayToday = isHoliday(dateStr)
   const isDuringHours = hour >= 9 && hour < 18
   
-  return isWeekday && isDuringHours
+  return {
+    isOpen: !isWeekend && !isHolidayToday && isDuringHours,
+    isWeekend,
+    isHoliday: isHolidayToday,
+    holidayName: isHolidayToday ? getHolidayName(dateStr) : null
+  }
+}
+
+/**
+ * Market Status (Brazilian WDO/WIN hours: Mon-Fri 9:00-18:00 Brasília time)
+ * Includes B3 holiday checking
+ */
+const marketStatus = computed(() => getMarketStatus())
+
+const isMarketOpen = computed(() => marketStatus.value.isOpen)
+
+const marketStatusText = computed(() => {
+  const status = marketStatus.value
+  if (status.isHoliday) return status.holidayName || 'Feriado'
+  if (status.isWeekend) return 'Fechado'
+  if (status.isOpen) return 'Aberto'
+  return 'Fechado'
 })
 
-const marketStatusText = computed(() => isMarketOpen.value ? 'Aberto' : 'Fechado')
-const marketStatusColor = computed(() => isMarketOpen.value ? 'text-[#4edea3]' : 'text-[#ffb2b7]')
+const marketStatusColor = computed(() => {
+  const status = marketStatus.value
+  if (status.isHoliday) return 'text-[#f9bd22]' // Yellow for holiday
+  if (status.isOpen) return 'text-[#4edea3]' // Green
+  return 'text-[#ffb2b7]' // Red
+})
 
 const tickers = computed(() => {
   const currencies = marketStore.marketData?.currencies || []
