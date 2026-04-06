@@ -15,14 +15,14 @@ const CACHE_TTL = 60000
 
 /**
  * VIX interpretation thresholds (NOVOS LIMIARES)
- * - < 15 + ~7% variação: "Tomando Risco" (Risk-On)
+ * - < 15 + variação DECRESCENTE -7%: "Tomando Risco" (Risk-On)
  * - >= 15 e < 25: "Medo" (Risk-Off)
  * - >= 25: "Medo Extremo" (Extreme Risk-Off)
- * - < 15 sem variação ~7%: "Cautela"
+ * - < 15 sem variação -7%: "Cautela"
  */
 function interpretVix(vixValue: number, vixChangePercent: number = 0): RiskIndicatorData['interpretation'] {
-  // Risk-On: VIX < 15 e variação >= 7% (subindo)
-  if (vixValue < 15 && vixChangePercent >= 7) {
+  // Risk-On: VIX < 15 e variação DECRESCENTE >= 7% (caindo = menos medo)
+  if (vixValue < 15 && vixChangePercent <= -7) {
     return 'Tomando Risco'
   }
   

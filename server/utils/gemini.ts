@@ -28,12 +28,32 @@ export interface MarketDataForAnalysis {
   vix: number
   vixInterpretation: string
   dxy: number
+  dxyChange: number
   gold: number
+  goldChange: number
+  goldTrend: 'up' | 'down' | 'neutral'
   brent: number
+  brentChange: number
+  ironOre: number
+  ironOreChange: number
   ewz: number
   usdBrl: number
+  mxm: number  // NEW: Mexican Peso
+  mxmChange: number
   treasury: number
   scenario: 'Risk-On' | 'Risk-Off' | 'Neutro'
+  
+  // NEW: Correlation signals for AI
+  goldRisingDxyFalling: boolean  // CONFIRMA Risk-On
+  brentRisingPetrobrasUp: boolean    // PRESSÃO ALTA
+  ironOreRisingValeUp: boolean       // PRESSÃO ALTA
+  mxnRisingEmergingUp: boolean     // CONFIRMA Risk-On
+  
+  // NEW: VALE data (iron ore proxy)
+  valePrice: number
+  valeChange: number
+  isValeProxy: boolean  // true when using VALE as iron ore proxy
+  
   newsContext?: string
 }
 
@@ -45,17 +65,56 @@ function buildAnalysisPrompt(data: MarketDataForAnalysis): string {
     ? `\n\n## NOTÍCIAS RECENTES:\n${data.newsContext}`
     : ''
 
+  // Build correlation signals section
+  const activeCorrelations: string[] = []
+  if (data.goldRisingDxyFalling) activeCorrelations.push('OURO↑ + DXY↓ = Risk-On Confirm')
+  if (data.brentRisingPetrobrasUp) activeCorrelations.push(`BRENT↑ → PETR4 em alta`)
+  if (data.ironOreRisingValeUp) activeCorrelations.push(`MINÉRIO↑ → VALE em alta`)
+  if (data.mxnRisingEmergingUp) activeCorrelations.push('MXN↑ = Emergiuentes em alta')
+  
+  const correlationsSection = activeCorrelations.length > 0
+    ? `\n\n## CORRELAÇÕES ATIVAS:\n${activeCorrelations.join('\n')}`
+    : ''
+
+  // Gold + DXY signal description
+  const goldSignal = data.goldTrend === 'up' ? 'subindo' : data.goldTrend === 'down' ? 'caindo' : 'lateral'
+  const dxySignal = data.dxyChange < 0 ? 'caindo (fraco)' : data.dxyChange > 0 ? 'subindo (forte)' : 'lateral'
+  const mxmSignal = data.mxmChange > 0 ? 'subindo (apreciando)' : data.mxmChange < 0 ? 'caindo (depreciando)' : 'lateral'
+  const brentSignal = data.brentChange > 0 ? 'subindo' : data.brentChange < 0 ? 'caindo' : 'lateral'
+  const ironSignal = data.ironOreChange > 0 ? 'subindo' : data.ironOreChange < 0 ? 'caindo' : 'lateral'
+  const valeSignal = data.valeChange > 0 ? 'subindo (proxy minério)' : data.valeChange < 0 ? 'caindo (proxy minério)' : 'lateral'
+  
+  // VALE proxy indicator
+  const valeProxyNote = data.isValeProxy ? ' (via VALE3.SA como proxy)' : ''
+
   return `Gere uma análise macroeconômica BREVE e DIRETA para day traders de WDO e WIN.
 
-Dados: VIX=${data.vix.toFixed(2)} (${data.vixInterpretation}), DXY=${data.dxy.toFixed(2)}, Ouro=${data.gold.toFixed(2)}, Brent=${data.brent.toFixed(2)}, USD/BRL=${data.usdBrl.toFixed(4)}, Treasury 10YR=${data.treasury.toFixed(3)}%, Cenário=${data.scenario}.${newsSection}
+## DADOS DE MERCADO:
+- VIX: ${data.vix.toFixed(2)} (${data.vixInterpretation})
+- DXY: ${data.dxy.toFixed(2)} ${dxySignal}
+- Ouro: ${data.gold.toFixed(2)} ${goldSignal}
+- Brent: ${data.brent.toFixed(2)} ${brentSignal}
+- Minério: ${data.ironOre.toFixed(2)} ${ironSignal}${valeProxyNote}
+- VALE3.SA: ${data.valePrice.toFixed(2)} ${valeSignal}
+- MXN: ${data.mxm.toFixed(4)} ${mxmSignal}
+- USD/BRL: ${data.usdBrl.toFixed(4)}
+- EWZ: ${data.ewz.toFixed(2)}
+- Treasury 10YR: ${data.treasury.toFixed(3)}%
+- CENÁRIO: ${data.scenario}${newsSection}${correlationsSection}
+
+## CORRELAÇÕES DE COMMODITIES:
+- Brent subindo → PETR4 em alta
+- VALE subindo → Minério de ferro em alta (correlação ~0.85)
+- Ouro subindo + Dólar caindo = Confirma Risk-On
+- MXN subindo = Confirma Risk-On em emergentes
 
 Estrutura Obrigatória (máximo 400 palavras no total):
 1. CENÁRIO: [2 linhas] Resumo do cenário atual
-2. SINAIS-CHAVE: [3 bullets] Os 3 indicadores mais importantes
+2. SINAIS-CHAVE: [3 bullets] Os 3 indicadores mais importantes (incluindo correlações ativas)
 3. DIREÇÃO: [WIN e WDO] Alta, Baixa ou Lateral com rationale em 1 linha cada
 4. ALERTAS: [2 bullets] O que pode mudar o cenário hoje
 
-Seja extremamente objetivo. Use as notícias para enriquecer a análise. Sem títulos elaborados.
+Seja extremamente objetivo. Use as notícias e correlações para enriquecer a análise. Sem títulos elaborados.
 Formato de saída livre mas MÁXIMO 400 palavras.`
 }
 
@@ -185,11 +244,16 @@ export async function generateMarketAnalysis(marketData: MarketDataForAnalysis):
  */
 export function validateMarketData(data: Partial<MarketDataForAnalysis>): data is MarketDataForAnalysis {
   const required: (keyof MarketDataForAnalysis)[] = [
-    'vix', 'dxy', 'gold', 'brent', 'ewz', 'usdBrl', 'treasury', 'scenario'
+    'vix', 'dxy', 'gold', 'brent', 'ewz', 'usdBrl', 'treasury', 'scenario',
+    'dxyChange', 'goldChange', 'goldTrend', 'brentChange', 'ironOre', 'ironOreChange',
+    'mxm', 'mxmChange', 'goldRisingDxyFalling', 'brentRisingPetrobrasUp',
+    'ironOreRisingValeUp', 'mxnRisingEmergingUp',
+    // NEW: VALE fields
+    'valePrice', 'valeChange', 'isValeProxy'
   ]
   
   return required.every(key => {
     const value = data[key]
-    return typeof value === 'number' || typeof value === 'string'
+    return typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean'
   })
 }

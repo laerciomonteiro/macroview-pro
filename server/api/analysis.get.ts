@@ -30,12 +30,28 @@ function extractMarketDataForAnalysis(marketOverview: MarketOverview): MarketDat
   const defaultValues = {
     vix: 0,
     dxy: 0,
+    dxyChange: 0,
     gold: 0,
+    goldChange: 0,
+    goldTrend: 'neutral' as const,
     brent: 0,
+    brentChange: 0,
+    ironOre: 0,
+    ironOreChange: 0,
     ewz: 0,
     usdBrl: 0,
+    mxm: 0,
+    mxmChange: 0,
     treasury: 0,
-    scenario: 'Neutro' as const
+    scenario: 'Neutro' as const,
+    goldRisingDxyFalling: false,
+    brentRisingPetrobrasUp: false,
+    ironOreRisingValeUp: false,
+    mxnRisingEmergingUp: false,
+    // NEW: VALE defaults
+    valePrice: 0,
+    valeChange: 0,
+    isValeProxy: false
   }
 
   // Find USD/BRL currency
@@ -45,6 +61,17 @@ function extractMarketDataForAnalysis(marketOverview: MarketOverview): MarketDat
   )
   if (usdCurrency?.bid) {
     usdBrl = usdCurrency.bid
+  }
+
+  // NEW: Find MXN (USD/MXN)
+  let mxm = 0
+  let mxmChange = 0
+  const mxmCurrency = marketOverview.currencies?.find(
+    c => c.code === 'USD' && c.codein === 'MXN'
+  )
+  if (mxmCurrency?.bid) {
+    mxm = mxmCurrency.bid
+    mxmChange = mxmCurrency.pctChange || 0
   }
 
   // Find VIX data
@@ -57,26 +84,62 @@ function extractMarketDataForAnalysis(marketOverview: MarketOverview): MarketDat
 
   // Find DXY data
   let dxy = 0
+  let dxyChange = 0
   if (marketOverview.riskIndicators?.dxy) {
     dxy = marketOverview.riskIndicators.dxy.price || 0
+    dxyChange = marketOverview.riskIndicators.dxy.changePercent || 0
   }
 
   // Find Gold (XAU)
   let gold = 0
+  let goldChange = 0
   const goldCommodity = marketOverview.commodities?.find(
     c => c.symbol === 'GC=F' || c.symbol === 'XAUUSD' || c.name.toLowerCase().includes('ouro')
   )
   if (goldCommodity?.price) {
     gold = goldCommodity.price
+    goldChange = goldCommodity.changePercent || 0
   }
+  const goldTrend: 'up' | 'down' | 'neutral' = goldChange > 0 ? 'up' : goldChange < 0 ? 'down' : 'neutral'
 
   // Find Brent
   let brent = 0
+  let brentChange = 0
   const brentCommodity = marketOverview.commodities?.find(
     c => c.symbol === 'BZ=F' || c.name.toLowerCase().includes('brent')
   )
   if (brentCommodity?.price) {
     brent = brentCommodity.price
+    brentChange = brentCommodity.changePercent || 0
+  }
+
+  // NEW: Find Iron Ore (via VALE proxy)
+  // Try to find direct iron ore data first, then use VALE as proxy
+  let ironOre = 0
+  let ironOreChange = 0
+  let valePrice = 0
+  let valeChange = 0
+  
+  // First try: direct iron ore (if available)
+  const ironCommodity = marketOverview.commodities?.find(
+    c => c.symbol === 'IRON' || c.name.toLowerCase().includes('ferro') || c.name.toLowerCase().includes('iron')
+  )
+  
+  // Second try: VALE as iron ore proxy
+  const valeCommodity = marketOverview.commodities?.find(
+    c => c.symbol === 'VALE3.SA' || c.name.toLowerCase().includes('vale')
+  )
+  
+  if (ironCommodity?.price) {
+    // Direct iron ore data available
+    ironOre = ironCommodity.price
+    ironOreChange = ironCommodity.changePercent || 0
+  } else if (valeCommodity?.price) {
+    // Use VALE as proxy for iron ore
+    ironOre = valeCommodity.price
+    ironOreChange = valeCommodity.changePercent || 0
+    valePrice = valeCommodity.price
+    valeChange = valeCommodity.changePercent || 0
   }
 
   // Find EWZ (Brazil ETF)
@@ -95,7 +158,7 @@ function extractMarketDataForAnalysis(marketOverview: MarketOverview): MarketDat
   }
 
   // Determine scenario based on VIX and DXY
-  // NOVOS LIMIARES: VIX > 15 = Risk-Off, VIX < 15 + ~7% variação = Risk-On
+  // NOVOS LIMIARES: VIX > 15 = Risk-Off, VIX < 15 + VIX DECRESCENTE -7% = Risk-On
   let vixChangePercent = 0
   if (marketOverview.riskIndicators?.vix?.changePercent) {
     vixChangePercent = marketOverview.riskIndicators.vix.changePercent
@@ -107,21 +170,43 @@ function extractMarketDataForAnalysis(marketOverview: MarketOverview): MarketDat
   if (vix > 15) {
     scenario = 'Risk-Off'
   }
-  // Risk-On: VIX < 15 e variação >= 7%
-  else if (vix < 15 && vixChangePercent >= 7) {
+  // Risk-On: VIX < 15 e variação DECRESCENTE >= 7% (caindo = menos medo)
+  else if (vix < 15 && vixChangePercent <= -7) {
     scenario = 'Risk-On'
   }
+
+  // NEW: Calculate correlation signals
+  const goldRisingDxyFalling = goldChange > 0 && dxyChange < 0
+  const brentRisingPetrobrasUp = brentChange > 0
+  const ironOreRisingValeUp = ironOreChange > 0
+  const mxnRisingEmergingUp = mxmChange > 0
 
   return {
     vix,
     vixInterpretation,
     dxy,
+    dxyChange,
     gold,
+    goldChange,
+    goldTrend,
     brent,
+    brentChange,
+    ironOre,
+    ironOreChange,
     ewz,
     usdBrl,
+    mxm,
+    mxmChange,
     treasury,
-    scenario
+    scenario,
+    goldRisingDxyFalling,
+    brentRisingPetrobrasUp,
+    ironOreRisingValeUp,
+    mxnRisingEmergingUp,
+    // NEW: VALE data for iron ore proxy
+    valePrice,
+    valeChange,
+    isValeProxy: valePrice > 0 && ironOre === valePrice
   }
 }
 

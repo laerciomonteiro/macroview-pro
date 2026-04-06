@@ -38,7 +38,7 @@ const YAHOO_FINANCE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart'
  */
 function parseAwesomeApiResponse(response: Record<string, any>): CurrencyData[] {
   const currencies: CurrencyData[] = []
-  const pairs = ['USD-BRL', 'EUR-BRL']
+  const pairs = ['USD-BRL', 'EUR-BRL', 'MXN-BRL']
   
   for (const pair of pairs) {
     const data = response[pair]
@@ -102,7 +102,7 @@ export default defineEventHandler(async (event): Promise<ApiResponse> => {
 
   // Try AwesomeAPI first
   try {
-    const url = `${AWESOME_API_URL}/USD-BRL,EUR-BRL`
+    const url = `${AWESOME_API_URL}/USD-BRL,EUR-BRL,MXN-BRL`
     const response = await $fetch(url, {
       timeout: 5000
     })

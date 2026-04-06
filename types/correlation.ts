@@ -68,6 +68,9 @@ export interface CurrentMarketData {
   dxy: number
   gold: number
   brent: number
+  ironOre: number  // NEW: Iron Ore for VALE correlation
+  mxm: number      // NEW: Mexican Peso (USD/MXN)
+  mxmChange: number // NEW: MXN change for signal
   scenario: 'Risk-On' | 'Risk-Off' | 'Neutro'
   vixChange: number
   dxyChange: number

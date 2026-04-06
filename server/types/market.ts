@@ -114,6 +114,21 @@ export interface BrazilFlowData {
 }
 
 /**
+ * VALE stock data (iron ore proxy)
+ * Used as proxy for iron ore price when direct data unavailable
+ */
+export interface ValeData {
+  symbol: string
+  name: string
+  price: number
+  change: number
+  changePercent: number
+  trend: 'up' | 'down' | 'neutral'
+  ironOreProxy: boolean
+  source: string
+}
+
+/**
  * Treasury yield data
  */
 export interface TreasuryData {

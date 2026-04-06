@@ -57,16 +57,16 @@ async function fetchAllMarketData(): Promise<MarketOverview> {
     ? (currenciesResult.value.data || [])
     : []
   
-  const riskIndicators: RiskIndicatorData = riskIndicatorsResult.status === 'fulfilled'
+   const riskIndicators: RiskIndicatorData = riskIndicatorsResult.status === 'fulfilled'
     ? (riskIndicatorsResult.value.data || {
         vix: { price: 0, previousClose: 0, change: 0, changePercent: 0 },
         dxy: { price: 0, previousClose: 0, change: 0, changePercent: 0 },
-        interpretation: 'Mercado tranquilo' as const
+        interpretation: 'Cautela' as const
       })
     : {
         vix: { price: 0, previousClose: 0, change: 0, changePercent: 0 },
         dxy: { price: 0, previousClose: 0, change: 0, changePercent: 0 },
-        interpretation: 'Mercado tranquilo' as const
+        interpretation: 'Cautela' as const
       }
   
   const commodities = commoditiesResult.status === 'fulfilled'

@@ -14,10 +14,10 @@ import type {
 } from '~/types/correlation'
 
 // Determine market scenario based on VIX and DXY
-// NOVOS LIMIARES: VIX > 15 = Risk-Off, VIX < 15 + ~7% variação = Risk-On
+// NOVOS LIMIARES: VIX > 15 = Risk-Off, VIX < 15 + VIX DECRESCENDO -7% = Risk-On
 function determineScenario(vix: number, dxy: number, vixChangePercent: number = 0): 'Risk-On' | 'Risk-Off' | 'Neutro' {
-  // Risk-On: VIX < 15 e variação >= 7% (subindo)
-  if (vix < 15 && vixChangePercent >= 7) {
+  // Risk-On: VIX < 15 e variação DECRESCENTE >= 7% (caindo = menos medo)
+  if (vix < 15 && vixChangePercent <= -7) {
     return 'Risk-On'
   }
   
@@ -193,6 +193,15 @@ async function fetchRealMarketData(): Promise<CurrentMarketData> {
     const brentEntry = marketData?.commodities?.find((c: any) => c.name === 'Brent Crude' || c.name === 'Brent')
     const brent = brentEntry?.price || 0
     
+    // NEW: Extract Iron Ore price
+    const ironOreEntry = marketData?.commodities?.find((c: any) => c.name === 'Iron Ore' || c.symbol === 'IRON')
+    const ironOre = ironOreEntry?.price || 0
+    
+    // NEW: Extract MXN (USD/MXN) from currencies
+    const mxmEntry = marketData?.currencies?.find((c: any) => c.code === 'USD' && c.codein === 'MXN')
+    const mxm = mxmEntry?.bid || 0
+    const mxmChange = mxmEntry?.pctChange || 0
+    
     const scenario = determineScenario(vix, dxy, vixChange)
     
     return {
@@ -200,6 +209,9 @@ async function fetchRealMarketData(): Promise<CurrentMarketData> {
       dxy,
       gold,
       brent,
+      ironOre,
+      mxm,
+      mxmChange,
       scenario,
       vixChange,
       dxyChange
@@ -212,6 +224,9 @@ async function fetchRealMarketData(): Promise<CurrentMarketData> {
       dxy: 0,
       gold: 0,
       brent: 0,
+      ironOre: 0,
+      mxm: 0,
+      mxmChange: 0,
       scenario: 'Neutro',
       vixChange: 0,
       dxyChange: 0
@@ -268,35 +283,46 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
     {
       asset: 'OURO',
       name: 'Gold (XAU/USD)',
-      meaning: 'Safe Haven / Inflation Hedge',
-      signal: 'Consolidation',
-      signalType: 'neutral',
-      impactWin: 'stable',
-      impactWdo: 'stable',
+      meaning: 'Safe Haven / Inflation Hedge + DXY inverse',
+      signal: currentData.dxyChange < 0 ? 'Gold Up + DXY Down = Risk-On Confirm' : 'Gold + DXY Up = Risk-Off Signal',
+      signalType: currentData.dxyChange < 0 ? 'positive' : 'negative',
+      impactWin: currentData.dxyChange < 0 ? 'up' : 'down',
+      impactWdo: 'down',
       correlation: -0.78,
-      description: 'Ouro tem correlação inversa com DXY. Quando Ouro sobe e DXY cai, sinaliza dólar fraco global, favorável ao WDO.'
+      description: 'Ouro tem correlação inversa com DXY. Quando Ouro sobe e DXY cai, sinaliza dólar fraco global, favorável ao WDO. CORRELAÇÃO ATIVA: Gold subindo + DXY caindo = Strong Risk-On confirmation.'
     },
     {
       asset: 'BRENT',
       name: 'Brent Crude Oil',
-      meaning: 'Global Oil Benchmark',
+      meaning: 'Global Oil Benchmark → PETR4',
       signal: currentData.brent > 80 ? 'High Commodity' : 'Low Commodity',
       signalType: currentData.brent > 80 ? 'positive' : 'neutral',
       impactWin: 'up',
       impactWdo: 'down',
       correlation: 0.65,
-      description: 'Petróleo Brent acima de $80 combinado com minério acima de $100 e DXY estável indica ambiente favorável para WIN.'
+      description: 'Petróleo Brent acima de $80 combinado com minério acima de $100 e DXY estável indica ambiente favorável para WIN. Brent em alta = pressão positiva em PETR4.'
     },
     {
       asset: 'MINERIO',
-      name: 'Iron Ore (CME)',
+      name: 'Iron Ore (CME) → VALE',
       meaning: 'Steel Production Input',
-      signal: 'China Demand',
-      signalType: 'positive',
+      signal: currentData.ironOre > 100 ? 'High China Demand' : currentData.ironOre > 0 ? 'Moderate Demand' : 'Low Demand',
+      signalType: currentData.ironOre > 100 ? 'positive' : currentData.ironOre > 0 ? 'neutral' : 'negative',
       impactWin: 'up',
       impactWdo: 'down',
       correlation: 0.72,
-      description: 'Minério de ferro é principal produto de exportação do Brasil. Acima de $100 indica forte demanda da China, benéfica para economia brasileira.'
+      description: 'Minério de ferro é principal produto de exportação do Brasil. Acima de $100 indica forte demanda da China, benéfica para economia brasileira. Minério em alta = pressão positiva em VALE.'
+    },
+    {
+      asset: 'MXN',
+      name: 'USD/MXN (Mexican Peso)',
+      meaning: 'Emerging Markets Risk Sentiment',
+      signal: currentData.mxmChange > 0 ? 'MXN Fortalecendo' : currentData.mxmChange < 0 ? 'MXN Enfraquecendo' : 'MXN Lateral',
+      signalType: currentData.mxmChange > 0 ? 'positive' : currentData.mxmChange < 0 ? 'negative' : 'neutral',
+      impactWin: 'up',
+      impactWdo: 'down',
+      correlation: 0.68,
+      description: 'Peso Mexicano é termômetro de sentimento em mercados emergentes. MXN subindo (apreciando) confirma Risk-On em emergentes. MXN caindo confirma Risk-Off.'
     },
     {
       asset: 'TNX',
@@ -330,15 +356,16 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       description: 'Ambiente de busca por risco - mercados em alta, dólar fraco',
       conditions: [
         'VIX abaixo de 15',
-        'VIX com variação ~7% (subindo)',
+        'VIX com variação DECRESCENTE -7% (caindo = menos medo)',
         'DXY caindo (dólar fraco)',
         'SPX em alta',
         'EWZ em alta',
+        'MXN em alta (Peso Mexicano)',
         'Fluxo estrangeiro entrando no Brasil'
       ],
       expectedOutcome: 'WIN tende a subir, WDO tende a cair. Favorable para posições compradas em WIN e vendidos em WDO.',
-      interpretation: 'Quando o VIX está abaixo de 15, o apetite por risco aumenta significativamente. Investidores buscam retornos em ativos de risco, favorecendo posições compradas em WIN (Índice Bovespa) e vendas em WDO (Dólar). O fluxo estrangeiro tende a entrar em mercados emergentes como o Brasil.',
-      signals: ['DXY ↓', 'VIX ↓', 'SPX ↑', 'EWZ ↑'],
+      interpretation: 'Quando o VIX está abaixo de 15 e em DECRÉSCIMO, o apetite por risco aumenta significativamente. Investidores buscam retornos em ativos de risco, favorecendo posições compradas em WIN (Índice Bovespa) e vendas em WDO (Dólar). O fluxo estrangeiro tende a entrar em mercados emergentes como o Brasil.',
+      signals: ['DXY ↓', 'VIX ↓ (queda -7%)', 'SPX ↑', 'EWZ ↑', 'MXN ↑'],
       icon: 'rocket_launch'
     },
     {
@@ -350,12 +377,13 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
         'VIX acima de 15',
         'DXY subindo (dólar forte)',
         'Ouro subindo (safe haven)',
+        'MXN em queda (Peso Mexicano)',
         'EWZ em queda',
         'Fluxo estrangeiro saindo do Brasil'
       ],
       expectedOutcome: 'WIN tende a cair, WDO tende a subir. Favorável para posições vendidas em WIN e compradas em WDO.',
       interpretation: 'Em ambiente de Risk-Off, investidores fogem de ativos de risco e buscam segurança. O dólar se fortalece (DXY sobe), causando queda em mercados emergentes. WIN (Índice Bovespa) tende a cair enquanto WDO (Dólar) tende a subir.',
-      signals: ['DXY ↑', 'VIX ↑', 'OURO ↑', 'EWZ ↓'],
+      signals: ['DXY ↑', 'VIX ↑', 'OURO ↑', 'MXN ↓', 'EWZ ↓'],
       icon: 'warning'
     },
     {
@@ -365,14 +393,15 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       description: 'Cautela lateral - esperando por catalisadores',
       conditions: [
         'DXY lateralizado',
-        'VIX abaixo de 15 sem variação ~7%',
+        'VIX abaixo de 15 sem variação -7%',
         'SPX lateral',
+        'MXN lateral',
         'Sem fluxo claro',
         'Esperando Payroll ou decisão do Fed'
       ],
       expectedOutcome: 'WIN e WDO lateralizados. Aguardar rompimento de ranges ou catalisadores claros.',
       interpretation: 'Quando o mercado está neutro, não há clara direção. O DXY lateraliza, o VIX fica entre 15-20 (sem pânico nem euforia), e os investidores esperam por catalisadores como payrolls, decisões do Fed ou dados econômicos relevantes.',
-      signals: ['DXY →', 'VIX 15-20', 'SPX →', 'Lateralização'],
+      signals: ['DXY →', 'VIX 15-20', 'SPX →', 'MXN →', 'Lateralização'],
       icon: 'drag_handle'
     }
   ]

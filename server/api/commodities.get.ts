@@ -17,11 +17,23 @@ const CACHE_TTL = 60000
 const TWELVE_DATA_BASE_URL = 'https://api.twelvedata.com/price'
 
 /**
- * Standard commodities to fetch from Yahoo Finance
+ * Commodity definition with optional VALE flag
  */
-const YAHOO_COMMODITIES = [
+interface CommodityDef {
+  symbol: string
+  name: string
+  unit: string
+  isVale?: boolean
+}
+
+/**
+ * Standard commodities to fetch from Yahoo Finance
+ * Including VALE as iron ore proxy
+ */
+const YAHOO_COMMODITIES: CommodityDef[] = [
   { symbol: YAHOO_SYMBOLS.BRENT, name: 'Brent Crude', unit: 'USD/bbl' },
-  { symbol: YAHOO_SYMBOLS.GOLD, name: 'Gold', unit: 'USD/oz' }
+  { symbol: YAHOO_SYMBOLS.GOLD, name: 'Gold', unit: 'USD/oz' },
+  { symbol: YAHOO_SYMBOLS.VALE, name: 'VALE (Iron Ore Proxy)', unit: 'BRL', isVale: true }
 ]
 
 /**

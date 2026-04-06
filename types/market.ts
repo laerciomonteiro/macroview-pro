@@ -55,6 +55,17 @@ export interface EtfFlow {
   institutional?: string // e.g., 'JP MORGAN'
 }
 
+// VALE stock data (iron ore proxy)
+export interface ValeData {
+  symbol: string        // e.g., 'VALE3.SA'
+  name: string          // e.g., 'VALE S.A.'
+  price: number         // Current price
+  variation: number     // Absolute change
+  variationPercent: number  // Percentage change
+  trend: 'up' | 'down' | 'neutral'  // Price direction
+  ironOreProxy: boolean // True when used as iron ore proxy
+}
+
 // Treasury yield data
 export interface TreasuryYield {
   symbol: string        // e.g., '^TNX'

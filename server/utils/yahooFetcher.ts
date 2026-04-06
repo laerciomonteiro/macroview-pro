@@ -190,6 +190,8 @@ export function extractPrice(response: YahooChartResponse): number | null {
 
 /**
  * Symbol mappings for common financial instruments
+ * VALE3.SA = B3 São Paulo (mais adequado para dados brasileiros)
+ * VALE = NYSE (alternativa)
  */
 export const YAHOO_SYMBOLS = {
   DXY: 'DX-Y.NYB',
@@ -201,7 +203,8 @@ export const YAHOO_SYMBOLS = {
   FVX_5YR: '^FVX',
   SP500: '^GSPC',
   NASDAQ: '^IXIC',
-  DJI: '^DJI'
+  DJI: '^DJI',
+  VALE: 'VALE3.SA'  // VALE on B3 São Paulo - proxy for iron ore
 } as const
 
 /**
@@ -217,5 +220,6 @@ export const SYMBOL_NAMES: Record<string, string> = {
   '^FVX': '5-Year Treasury Yield',
   '^GSPC': 'S&P 500',
   '^IXIC': 'NASDAQ Composite',
-  '^DJI': 'Dow Jones Industrial Average'
+  '^DJI': 'Dow Jones Industrial Average',
+  'VALE3.SA': 'VALE S.A. (Iron Ore Proxy)'
 }

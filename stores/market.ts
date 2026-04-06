@@ -65,12 +65,12 @@ export const useMarketStore = defineStore('market', {
         }
       }
       
-      // Risk-On: VIX < 15 e variação >= 7%
-      if (vix < 15 && vixChangePercent >= 7 && dxy < 105) {
+      // Risk-On: VIX < 15 e variação DECRESCENTE >= 7% (caindo = menos medo)
+      if (vix < 15 && vixChangePercent <= -7 && dxy < 105) {
         return {
           scenario: 'Risk-On',
           color: '#4edea3',
-          signals: [`VIX < 15 + ~7% (${vix.toFixed(2)}, ${vixChangePercent.toFixed(1)}%)`, 'DXY < 105 (USD Fraco)'],
+          signals: [`VIX < 15 + queda -7% (${vix.toFixed(2)}, ${vixChangePercent.toFixed(1)}%)`, 'DXY < 105 (USD Fraco)'],
           interpretation: 'Mercado busca risco em emergentes. Alta probabilidade de WIN subir durante o pregão.',
           confidence: 88
         }
@@ -80,7 +80,7 @@ export const useMarketStore = defineStore('market', {
       return {
         scenario: 'Neutro',
         color: '#f9bd22',
-        signals: [`VIX < 15 sem ~7% (${vix.toFixed(2)}, ${vixChangePercent.toFixed(1)}%)`, 'DXY entre 105-108'],
+        signals: [`VIX < 15 sem queda -7% (${vix.toFixed(2)}, ${vixChangePercent.toFixed(1)}%)`, 'DXY entre 105-108'],
         interpretation: 'Mercado em modo neutro. Aguardando catalisadores para direção.',
         confidence: 65
       }
@@ -166,7 +166,7 @@ export const useMarketStore = defineStore('market', {
               timestamp: new Date()
             }
           ],
-          commodities: [
+commodities: [
             {
               symbol: 'XAU',
               name: 'Ouro',
@@ -177,7 +177,7 @@ export const useMarketStore = defineStore('market', {
             },
             {
               symbol: 'BRENT',
-              name: 'Petróleo Brent',
+              name: 'Petroleum Brent',
               price: 85.40,
               variation: -1.03,
               variationPercent: -1.2,
@@ -190,6 +190,14 @@ export const useMarketStore = defineStore('market', {
               variation: 0,
               variationPercent: 0,
               unit: 'ton'
+            },
+            {
+              symbol: 'VALE3.SA',
+              name: 'VALE (Iron Ore Proxy)',
+              price: 68.50,
+              variation: 1.2,
+              variationPercent: 1.78,
+              unit: 'BRL'
             }
           ],
           indices: [
