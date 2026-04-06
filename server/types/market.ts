@@ -85,7 +85,7 @@ export interface YahooQuote {
 export interface RiskIndicatorData {
   vix: YahooQuote
   dxy: YahooQuote
-  interpretation: 'Mercado tranquilo' | 'Cautela' | 'Medo'
+  interpretation: 'Tomando Risco' | 'Cautela' | 'Medo' | 'Medo Extremo'
 }
 
 /**

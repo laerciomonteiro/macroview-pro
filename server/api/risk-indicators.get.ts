@@ -14,19 +14,30 @@ import { withCache, setCacheHeaders } from '../utils/cache'
 const CACHE_TTL = 60000
 
 /**
- * VIX interpretation thresholds
- * - < 15: "Mercado tranquilo" (Calm market)
- * - 15-20: "Cautela" (Caution)
- * - > 20: "Medo" (Fear)
+ * VIX interpretation thresholds (NOVOS LIMIARES)
+ * - < 15 + ~7% variação: "Tomando Risco" (Risk-On)
+ * - >= 15 e < 25: "Medo" (Risk-Off)
+ * - >= 25: "Medo Extremo" (Extreme Risk-Off)
+ * - < 15 sem variação ~7%: "Cautela"
  */
-function interpretVix(vixValue: number): RiskIndicatorData['interpretation'] {
-  if (vixValue < 15) {
-    return 'Mercado tranquilo'
-  } else if (vixValue <= 20) {
-    return 'Cautela'
-  } else {
+function interpretVix(vixValue: number, vixChangePercent: number = 0): RiskIndicatorData['interpretation'] {
+  // Risk-On: VIX < 15 e variação >= 7% (subindo)
+  if (vixValue < 15 && vixChangePercent >= 7) {
+    return 'Tomando Risco'
+  }
+  
+  // Risk-Off: VIX >= 15
+  if (vixValue >= 15 && vixValue < 25) {
     return 'Medo'
   }
+  
+  // Extreme Risk-Off: VIX >= 25
+  if (vixValue >= 25) {
+    return 'Medo Extremo'
+  }
+  
+  // VIX < 15 sem variação suficiente: Cautela
+  return 'Cautela'
 }
 
 /**
@@ -67,8 +78,8 @@ async function fetchRiskIndicatorsFromApi(): Promise<RiskIndicatorData> {
     console.warn('[/api/risk-indicators] Failed to fetch VIX:', vixResult.status)
   }
   
-  // Calculate VIX interpretation
-  const interpretation = interpretVix(vixQuote.price)
+  // Calculate VIX interpretation with change percent for Risk-On detection
+  const interpretation = interpretVix(vixQuote.price, vixQuote.changePercent)
   
   return {
     vix: vixQuote,

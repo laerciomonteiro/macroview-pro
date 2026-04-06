@@ -51,35 +51,36 @@ export const useMarketStore = defineStore('market', {
       // Fall back to computed scenario from market data
       if (!this.marketData?.riskIndicators) return null
       
-      const { vix, dxy } = this.marketData.riskIndicators
+      const { vix, dxy, vixChangePercent = 0 } = this.marketData.riskIndicators
       
-      // Risk-On: VIX < 15, DXY falling (below 105)
-      if (vix < 15 && dxy < 105) {
-        return {
-          scenario: 'Risk-On',
-          color: '#4edea3',
-          signals: ['VIX < 15 (Low Fear)', 'DXY < 105 (USD Weak)'],
-          interpretation: 'Mercado busca risco em emergentes. Alta probabilidade de WIN subir durante o pregão.',
-          confidence: 88
-        }
-      }
-      
-      // Risk-Off: VIX > 25, DXY rising
-      if (vix > 25 || dxy > 108) {
+      // NOVOS LIMIARES:
+      // Risk-Off: VIX > 15
+      if (vix > 15 || dxy > 108) {
         return {
           scenario: 'Risk-Off',
           color: '#ffb2b7',
-          signals: ['VIX > 25 (High Fear)', 'DXY > 108 (USD Strong)'],
+          signals: [`VIX > 15 (Medo: ${vix.toFixed(2)})`, 'DXY > 108 (USD Forte)'],
           interpretation: 'Mercado em modo de aversão a risco. Protect assets em alta.',
           confidence: 85
         }
       }
       
-      // Neutro
+      // Risk-On: VIX < 15 e variação >= 7%
+      if (vix < 15 && vixChangePercent >= 7 && dxy < 105) {
+        return {
+          scenario: 'Risk-On',
+          color: '#4edea3',
+          signals: [`VIX < 15 + ~7% (${vix.toFixed(2)}, ${vixChangePercent.toFixed(1)}%)`, 'DXY < 105 (USD Fraco)'],
+          interpretation: 'Mercado busca risco em emergentes. Alta probabilidade de WIN subir durante o pregão.',
+          confidence: 88
+        }
+      }
+      
+      // Neutro: VIX < 15 sem variação suficiente
       return {
         scenario: 'Neutro',
         color: '#f9bd22',
-        signals: ['VIX between 15-25', 'DXY between 105-108'],
+        signals: [`VIX < 15 sem ~7% (${vix.toFixed(2)}, ${vixChangePercent.toFixed(1)}%)`, 'DXY entre 105-108'],
         interpretation: 'Mercado em modo neutro. Aguardando catalisadores para direção.',
         confidence: 65
       }

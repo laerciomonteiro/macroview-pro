@@ -110,7 +110,7 @@ const miniAnalysis = computed(() => {
         <!-- Loading Text -->
         <div class="flex items-center gap-2 text-on-surface-variant">
           <span class="material-symbols-outlined animate-spin text-primary">psychology</span>
-          <span class="text-sm italic">Robô está analisando...</span>
+          <span class="text-sm italic">Nosso robô está analisando...</span>
         </div>
       </div>
     </div>

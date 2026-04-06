@@ -14,14 +14,20 @@ import type {
 } from '~/types/correlation'
 
 // Determine market scenario based on VIX and DXY
-function determineScenario(vix: number, dxy: number): 'Risk-On' | 'Risk-Off' | 'Neutro' {
-  if (vix < 15) {
+// NOVOS LIMIARES: VIX > 15 = Risk-Off, VIX < 15 + ~7% variação = Risk-On
+function determineScenario(vix: number, dxy: number, vixChangePercent: number = 0): 'Risk-On' | 'Risk-Off' | 'Neutro' {
+  // Risk-On: VIX < 15 e variação >= 7% (subindo)
+  if (vix < 15 && vixChangePercent >= 7) {
     return 'Risk-On'
-  } else if (vix > 20) {
-    return 'Risk-Off'
-  } else {
-    return 'Neutro'
   }
+  
+  // Risk-Off: VIX > 15 (novo limiar)
+  if (vix > 15) {
+    return 'Risk-Off'
+  }
+  
+  // Neutro: VIX < 15 sem variação suficiente ou outras condições
+  return 'Neutro'
 }
 
 interface YahooChartResult {
@@ -187,7 +193,7 @@ async function fetchRealMarketData(): Promise<CurrentMarketData> {
     const brentEntry = marketData?.commodities?.find((c: any) => c.name === 'Brent Crude' || c.name === 'Brent')
     const brent = brentEntry?.price || 0
     
-    const scenario = determineScenario(vix, dxy)
+    const scenario = determineScenario(vix, dxy, vixChange)
     
     return {
       vix,
@@ -230,11 +236,11 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       asset: 'VIX',
       name: 'Volatility Index',
       meaning: 'Fear & Volatility Index',
-      signal: currentData.vix < 15 ? 'Low Vol' : currentData.vix > 20 ? 'High Vol' : 'Moderate Vol',
-      signalType: currentData.vix < 15 ? 'positive' : currentData.vix > 20 ? 'negative' : 'neutral',
+      signal: currentData.vix > 15 ? 'High Vol (Fear)' : currentData.vix < 15 ? 'Low Vol (Risk-On)' : 'Moderate Vol',
+      signalType: currentData.vix > 15 ? 'negative' : currentData.vix < 15 ? 'positive' : 'neutral',
       impactWin: 'up',
       impactWdo: 'down',
-      description: 'Mede a volatilidade/medo do mercado. Quando abaixo de 15, indica Risk-On (busca por risco). Acima de 20, indica Risk-Off (fuga de risco).'
+      description: 'Mede a volatilidade/medo do mercado. VIX > 15 indica Risk-Off (medo). VIX < 15 + variação ~7% indica Risk-On (busca por risco).'
     },
     {
       asset: 'DXY',
@@ -323,8 +329,9 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       color: '#4edea3',
       description: 'Ambiente de busca por risco - mercados em alta, dólar fraco',
       conditions: [
-        'DXY caindo (dólar fraco)',
         'VIX abaixo de 15',
+        'VIX com variação ~7% (subindo)',
+        'DXY caindo (dólar fraco)',
         'SPX em alta',
         'EWZ em alta',
         'Fluxo estrangeiro entrando no Brasil'
@@ -340,8 +347,8 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       color: '#ffb2b7',
       description: 'Fuga de risco - mercados em queda, dólar forte, busca por segurança',
       conditions: [
+        'VIX acima de 15',
         'DXY subindo (dólar forte)',
-        'VIX acima de 20',
         'Ouro subindo (safe haven)',
         'EWZ em queda',
         'Fluxo estrangeiro saindo do Brasil'
@@ -358,7 +365,7 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       description: 'Cautela lateral - esperando por catalisadores',
       conditions: [
         'DXY lateralizado',
-        'VIX entre 15-20',
+        'VIX abaixo de 15 sem variação ~7%',
         'SPX lateral',
         'Sem fluxo claro',
         'Esperando Payroll ou decisão do Fed'

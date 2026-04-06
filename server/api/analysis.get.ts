@@ -95,10 +95,20 @@ function extractMarketDataForAnalysis(marketOverview: MarketOverview): MarketDat
   }
 
   // Determine scenario based on VIX and DXY
+  // NOVOS LIMIARES: VIX > 15 = Risk-Off, VIX < 15 + ~7% variação = Risk-On
+  let vixChangePercent = 0
+  if (marketOverview.riskIndicators?.vix?.changePercent) {
+    vixChangePercent = marketOverview.riskIndicators.vix.changePercent
+  }
+  
   let scenario: 'Risk-On' | 'Risk-Off' | 'Neutro' = 'Neutro'
-  if (vix > 25) {
+  
+  // Risk-Off: VIX > 15
+  if (vix > 15) {
     scenario = 'Risk-Off'
-  } else if (vix < 15 && dxy < 100) {
+  }
+  // Risk-On: VIX < 15 e variação >= 7%
+  else if (vix < 15 && vixChangePercent >= 7) {
     scenario = 'Risk-On'
   }
 

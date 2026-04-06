@@ -38,7 +38,9 @@ export interface MarketIndex {
 // Risk indicator for scenario analysis
 export interface RiskIndicator {
   vix: number           // VIX index value
+  vixChangePercent?: number  // VIX change percent (for Risk-On detection)
   dxy: number           // DXY dollar index
+  dxyChangePercent?: number  // DXY change percent
   interpretation: string // Market interpretation text
 }
 
