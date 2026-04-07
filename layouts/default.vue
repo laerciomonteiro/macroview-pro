@@ -304,14 +304,50 @@ const marketStatusColor = computed(() => {
 })
 
 const tickers = computed(() => {
-  const currencies = marketStore.marketData?.currencies || []
-  return [
-    { symbol: 'USD/BRL', price: 5.2423, changeType: 'up' as const },
-    { symbol: 'WIN', price: 128400, changeType: 'down' as const },
-    { symbol: 'DXY', price: 104.2, changeType: 'stable' as const },
-    { symbol: 'SPX', price: 5230, changeType: 'up' as const },
-    { symbol: 'BTC', price: 68200, changeType: 'up' as const },
-  ]
+  const data = marketStore.marketData
+  if (!data) return []
+
+  const result: Array<{
+    symbol: string
+    price: number
+    changeType: 'up' | 'down' | 'stable'
+  }> = []
+
+  // 1. USD/BRL - from currencies
+  const usdBrl = data.currencies?.find(c => c.code === 'USD' || c.code === 'USD/BRL')
+  if (usdBrl) {
+    const pctChange = usdBrl.variationPercent || 0
+    result.push({
+      symbol: 'USD/BRL',
+      price: usdBrl.bid || 0,
+      changeType: pctChange > 0 ? 'up' : pctChange < 0 ? 'down' : 'stable'
+    })
+  }
+
+  // 2. DXY - from riskIndicators (handle both mock: number and API: object)
+  const dxyData = data.riskIndicators?.dxy
+  if (dxyData) {
+    // Check if it's a number (mock) or object (API)
+    const dxyPrice = typeof dxyData === 'number' ? dxyData : (dxyData as { price?: number }).price || 0
+    const dxyChange = typeof dxyData === 'number' ? 0 : (dxyData as { changePercent?: number }).changePercent || 0
+    result.push({
+      symbol: 'DXY',
+      price: dxyPrice,
+      changeType: dxyChange > 0 ? 'up' : dxyChange < 0 ? 'down' : 'stable'
+    })
+  }
+
+  // 3. BTC - from commodities (BTC-USD)
+  const btc = data.commodities?.find(c => c.symbol === 'BTC-USD')
+  if (btc) {
+    result.push({
+      symbol: 'BTC',
+      price: btc.price || 0,
+      changeType: (btc.variationPercent || 0) > 0 ? 'up' : 'down'
+    })
+  }
+
+  return result
 })
 
 // Methods

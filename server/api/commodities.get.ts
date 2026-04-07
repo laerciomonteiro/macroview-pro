@@ -29,11 +29,14 @@ interface CommodityDef {
 /**
  * Standard commodities to fetch from Yahoo Finance
  * Including VALE as iron ore proxy
+ * Also including BTC (Bitcoin) and WIN (Ibovespa Mini)
  */
 const YAHOO_COMMODITIES: CommodityDef[] = [
   { symbol: YAHOO_SYMBOLS.BRENT, name: 'Brent Crude', unit: 'USD/bbl' },
   { symbol: YAHOO_SYMBOLS.GOLD, name: 'Gold', unit: 'USD/oz' },
-  { symbol: YAHOO_SYMBOLS.VALE, name: 'VALE (Iron Ore Proxy)', unit: 'BRL', isVale: true }
+  { symbol: YAHOO_SYMBOLS.VALE, name: 'VALE (Iron Ore Proxy)', unit: 'BRL', isVale: true },
+  { symbol: 'BTC-USD', name: 'Bitcoin', unit: 'USD' },
+  { symbol: 'WINM24', name: 'WIN Mini Índice', unit: 'BRL' }
 ]
 
 /**
