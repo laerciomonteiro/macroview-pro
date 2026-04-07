@@ -201,6 +201,12 @@ const TickerItem = defineComponent({
 // Store
 const marketStore = useMarketStore()
 
+// Fetch market data directly for footer tickers
+const { data: marketData } = await useFetch('/api/market-overview', {
+  default: () => null,
+  transform: (response: any) => response?.data || null
+})
+
 // Route
 const route = useRoute()
 
@@ -304,7 +310,7 @@ const marketStatusColor = computed(() => {
 })
 
 const tickers = computed(() => {
-  const data = marketStore.marketData
+  const data = marketData.value
   if (!data) return []
 
   const result: Array<{
@@ -314,9 +320,9 @@ const tickers = computed(() => {
   }> = []
 
   // 1. USD/BRL - from currencies
-  const usdBrl = data.currencies?.find(c => c.code === 'USD' || c.code === 'USD/BRL')
+  const usdBrl = data.currencies?.find((c: any) => c.code === 'USD' && c.codein === 'BRL')
   if (usdBrl) {
-    const pctChange = usdBrl.variationPercent || 0
+    const pctChange = usdBrl.pctChange || usdBrl.variationPercent || 0
     result.push({
       symbol: 'USD/BRL',
       price: usdBrl.bid || 0,
@@ -327,9 +333,8 @@ const tickers = computed(() => {
   // 2. DXY - from riskIndicators (handle both mock: number and API: object)
   const dxyData = data.riskIndicators?.dxy
   if (dxyData) {
-    // Check if it's a number (mock) or object (API)
-    const dxyPrice = typeof dxyData === 'number' ? dxyData : (dxyData as { price?: number }).price || 0
-    const dxyChange = typeof dxyData === 'number' ? 0 : (dxyData as { changePercent?: number }).changePercent || 0
+    const dxyPrice = typeof dxyData === 'number' ? dxyData : dxyData.price || 0
+    const dxyChange = typeof dxyData === 'number' ? 0 : dxyData.change || dxyData.changePercent || 0
     result.push({
       symbol: 'DXY',
       price: dxyPrice,
@@ -338,12 +343,13 @@ const tickers = computed(() => {
   }
 
   // 3. BTC - from commodities (BTC-USD)
-  const btc = data.commodities?.find(c => c.symbol === 'BTC-USD')
+  const btc = data.commodities?.find((c: any) => c.symbol === 'BTC-USD' || c.name?.toLowerCase().includes('bitcoin'))
   if (btc) {
+    const btcChange = btc.changePercent || btc.variationPercent || 0
     result.push({
       symbol: 'BTC',
       price: btc.price || 0,
-      changeType: (btc.variationPercent || 0) > 0 ? 'up' : 'down'
+      changeType: btcChange > 0 ? 'up' : btcChange < 0 ? 'down' : 'stable'
     })
   }
 
