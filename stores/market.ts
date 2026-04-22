@@ -33,11 +33,16 @@ export const useMarketStore = defineStore('market', {
 
   getters: {
     /**
-     * Formatted last update time
+     * Formatted last update time (Brazilian timezone)
      */
     formattedLastUpdate(): string {
       if (!this.lastUpdate) return '--:--:--'
-      return this.lastUpdate.toISOString().split('T')[1].split('.')[0]
+      return this.lastUpdate.toLocaleString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: 'America/Sao_Paulo'
+      })
     },
 
     /**

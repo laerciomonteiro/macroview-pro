@@ -394,8 +394,11 @@ const isActiveRoute = (path: string): boolean => {
 }
 
 const updateTime = (): void => {
-  const now = new Date()
-  currentUtcTime.value = now.toISOString().split('T')[1].split('.')[0] + ' UTC'
+  const brasiliaTime = getBrasiliaTime()
+  const hours = String(brasiliaTime.getHours()).padStart(2, '0')
+  const minutes = String(brasiliaTime.getMinutes()).padStart(2, '0')
+  const seconds = String(brasiliaTime.getSeconds()).padStart(2, '0')
+  currentUtcTime.value = `${hours}:${minutes}:${seconds} BRT`
 }
 
 let timeInterval: ReturnType<typeof setInterval>

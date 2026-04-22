@@ -2,7 +2,7 @@
  * Auto Refresh Composable
  * Handles automatic data refresh with visual indicator
  */
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, readonly } from 'vue'
 import { useMarketStore } from '~/stores/market'
 
 export interface UseAutoRefreshOptions {
@@ -30,7 +30,12 @@ export const useAutoRefresh = (options: UseAutoRefreshOptions = {}) => {
   // Computed
   const formattedLastRefresh = computed(() => {
     if (!lastRefreshTime.value) return 'Never'
-    return lastRefreshTime.value.toISOString().split('T')[1].split('.')[0]
+    return lastRefreshTime.value.toLocaleString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'America/Sao_Paulo'
+    })
   })
 
   const formattedNextRefresh = computed(() => {

@@ -30,13 +30,14 @@ const currentData = computed<CurrentMarketData>(() => apiData.value?.data?.curre
   dxyChange: 0
 })
 
-// Format timestamp
+// Format timestamp with Brazilian timezone
 const lastUpdate = computed(() => {
   if (!apiData.value?.timestamp) return '—'
   return new Date(apiData.value.timestamp).toLocaleString('pt-BR', {
     hour: '2-digit',
     minute: '2-digit',
-    second: '2-digit'
+    second: '2-digit',
+    timeZone: 'America/Sao_Paulo'
   })
 })
 
