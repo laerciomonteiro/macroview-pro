@@ -227,7 +227,7 @@ useHead({
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <InsightCard
             title="VIX como Termômetro"
-            content="VIX abaixo de 15 = Risk-On (comprar WIN, vender WDO). VIX acima de 20 = Risk-Off (vender WIN, comprar WDO)."
+            content="VIX abaixo de 15 = Busca por Risco (comprar WIN, vender WDO). VIX acima de 20 = Fuga de Risco (vender WIN, comprar WDO)."
             icon="speed"
             variant="success"
           />
@@ -255,7 +255,7 @@ useHead({
 
           <InsightCard
             title="Safe Haven - Ouro"
-            content="Ouro subindo pode indicar tanto medo (Risk-Off) quanto hedge contra inflação. Use em conjunto com VIX."
+            content="Ouro subindo pode indicar tanto medo (Fuga de Risco) quanto hedge contra inflação. Use em conjunto com VIX."
             icon="shield"
             variant="default"
           />

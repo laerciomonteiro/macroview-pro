@@ -57,7 +57,7 @@ function getImpactDisplay(impact: 'up' | 'down' | 'stable', strength?: number) {
   <div class="bg-surface-container-low rounded-xl overflow-hidden">
     <!-- Header -->
     <div class="p-6 border-b border-outline-variant/10">
-      <h3 class="text-lg font-bold text-on-surface">Intermarket Matrix</h3>
+      <h3 class="text-lg font-bold text-on-surface">Matriz Intermarket</h3>
       <p class="text-xs text-on-surface-variant mt-1">Correlações entre ativos e impacto em WIN/WDO</p>
     </div>
 
@@ -77,19 +77,19 @@ function getImpactDisplay(impact: 'up' | 'down' | 'stable', strength?: number) {
         <thead>
           <tr class="bg-surface-container-highest/50">
             <th class="px-6 py-4 text-[10px] font-bold text-outline uppercase tracking-widest border-b border-outline-variant/10">
-              Asset
+              Ativo
             </th>
             <th class="px-6 py-4 text-[10px] font-bold text-outline uppercase tracking-widest border-b border-outline-variant/10">
-              Meaning
+              Significado
             </th>
             <th class="px-6 py-4 text-[10px] font-bold text-outline uppercase tracking-widest border-b border-outline-variant/10">
-              Signal
+              Sinal
             </th>
             <th class="px-6 py-4 text-[10px] font-bold text-outline uppercase tracking-widest border-b border-outline-variant/10">
-              Impact WIN/WDO
+              Impacto WIN/WDO
             </th>
             <th class="px-6 py-4 text-[10px] font-bold text-outline uppercase tracking-widest border-b border-outline-variant/10">
-              Correlation
+              Correlação
             </th>
           </tr>
         </thead>
@@ -165,13 +165,13 @@ function getImpactDisplay(impact: 'up' | 'down' | 'stable', strength?: number) {
     <div class="p-4 border-t border-outline-variant/10 bg-surface-container-lowest/50">
       <div class="flex items-center gap-6 text-xs text-on-surface-variant">
         <div class="flex items-center gap-2">
-          <span class="text-primary">↑</span> <span>Positive impact on WIN</span>
+          <span class="text-primary">↑</span> <span>Impacto positivo no WIN</span>
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-secondary">↓</span> <span>Negative impact on WIN</span>
+          <span class="text-secondary">↓</span> <span>Impacto negativo no WIN</span>
         </div>
         <div class="flex items-center gap-2">
-          <span class="text-outline">↔</span> <span>Neutral/No direct impact</span>
+          <span class="text-outline">↔</span> <span>Neutro/Sem impacto direto</span>
         </div>
       </div>
     </div>
