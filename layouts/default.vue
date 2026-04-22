@@ -261,9 +261,41 @@ const getHolidayName = (dateStr: string): string => {
   return holidays[dateStr] || 'Feriado'
 }
 
-const getMarketStatus = () => {
+/**
+ * Get Brasília time with correct DST handling
+ * Uses Intl API to handle Brazilian Daylight Saving Time (UTC-2 in summer, UTC-3 in winter)
+ */
+const getBrasiliaTime = (): Date => {
   const now = new Date()
-  const brasiliaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }))
+  
+  // Use Intl to get the timezone offset for America/Sao_Paulo
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+  
+  // Parse the formatted string and create a Date object
+  const parts = formatter.formatToParts(now)
+  const getPart = (type: string) => parts.find(p => p.type === type)?.value || '0'
+  
+  return new Date(
+    parseInt(getPart('year')),
+    parseInt(getPart('month')) - 1,
+    parseInt(getPart('day')),
+    parseInt(getPart('hour')),
+    parseInt(getPart('minute')),
+    parseInt(getPart('second'))
+  )
+}
+
+const getMarketStatus = () => {
+  const brasiliaTime = getBrasiliaTime()
   
   const dayOfWeek = brasiliaTime.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
   const hour = brasiliaTime.getHours()

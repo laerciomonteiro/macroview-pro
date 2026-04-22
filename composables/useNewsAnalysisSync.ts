@@ -4,18 +4,30 @@
  * 
  * Features:
  * - Only triggers AI refresh if news actually changed
- * - Compares article count and latest timestamp to detect changes
+ * - Uses hash of article IDs for robust change detection
  * 
  * Usage:
  * - NewsRefreshButton calls onNewsRefreshed(articles) after fetching news
+ * - Returns boolean indicating if news changed (for user feedback)
  * - dashboard.vue watches shouldRefreshAnalysis to regenerate AI analysis
  */
 
 import { ref, readonly } from 'vue'
 
 const shouldRefreshAnalysis = ref(false)
-const lastArticleCount = ref(0)
-const lastLatestTimestamp = ref<number>(0)
+const lastArticlesHash = ref<string>('')
+
+/**
+ * Generate hash from article IDs for robust change detection
+ */
+const generateHash = (articles: any[]): string => {
+  if (!articles || articles.length === 0) return ''
+  const sortedIds = articles
+    .map((a: any) => a.id || a.url)
+    .filter(Boolean)
+    .sort()
+  return sortedIds.join(',')
+}
 
 export const useNewsAnalysisSync = () => {
   /**
@@ -31,30 +43,28 @@ export const useNewsAnalysisSync = () => {
 
   /**
    * Check if news changed and trigger analysis if needed
-   * Uses article count + latest timestamp comparison for simplicity
+   * Uses hash of article IDs for robust change detection
+   * 
+   * @returns boolean indicating if news changed (for user feedback)
    */
-  const onNewsRefreshed = (articles: any[]) => {
-    if (!articles || articles.length === 0) return
+  const onNewsRefreshed = (articles: any[]): boolean => {
+    if (!articles || articles.length === 0) return false
 
-    const latestTimestamp = Math.max(...articles.map((a: any) =>
-      new Date(a.publishedAt).getTime()
-    ))
+    const currentHash = generateHash(articles)
+    const hasChanged = currentHash !== lastArticlesHash.value
 
-    // Trigger if: new articles OR newer article appeared
-    if (articles.length !== lastArticleCount.value ||
-        latestTimestamp > lastLatestTimestamp.value) {
+    if (hasChanged) {
       triggerAnalysisRefresh()
+      lastArticlesHash.value = currentHash
     }
 
-    lastArticleCount.value = articles.length
-    lastLatestTimestamp.value = latestTimestamp
+    return hasChanged
   }
 
   return {
     shouldRefreshAnalysis: readonly(shouldRefreshAnalysis),
     triggerAnalysisRefresh,
     onNewsRefreshed,
-    lastArticleCount: readonly(lastArticleCount),
-    lastLatestTimestamp: readonly(lastLatestTimestamp)
+    lastArticlesHash: readonly(lastArticlesHash)
   }
 }

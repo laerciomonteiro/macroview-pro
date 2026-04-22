@@ -52,6 +52,39 @@ const assetColor = computed(() => {
     default: return 'text-on-surface'
   }
 })
+
+// Display value: show changePercent if available, otherwise correlation
+const displayValue = computed(() => {
+  if (props.item.changePercent !== undefined) {
+    const val = props.item.changePercent
+    return val >= 0 ? `+${val.toFixed(2)}%` : `${val.toFixed(2)}%`
+  }
+  if (props.item.correlation !== undefined) {
+    const val = props.item.correlation
+    return val >= 0 ? `+${val.toFixed(2)}` : `${val.toFixed(2)}`
+  }
+  return null
+})
+
+// Color for display value: green for positive change, red for negative
+const displayValueColor = computed(() => {
+  if (props.item.changePercent !== undefined) {
+    return props.item.changePercent >= 0
+      ? 'bg-primary/10 text-primary'
+      : 'bg-secondary/10 text-secondary'
+  }
+  if (props.item.correlation !== undefined) {
+    return props.item.correlation < 0
+      ? 'bg-secondary/10 text-secondary'
+      : 'bg-primary/10 text-primary'
+  }
+  return 'bg-outline/10 text-outline'
+})
+
+// Label: % for changePercent, corr for correlation
+const displayLabel = computed(() => {
+  return props.item.changePercent !== undefined ? 'Δ%' : 'corr'
+})
 </script>
 
 <template>
@@ -134,13 +167,11 @@ const assetColor = computed(() => {
           </span>
         </div>
 
-        <!-- Correlation Value -->
-        <div v-if="item.correlation !== undefined" class="ml-auto">
-          <span :class="[
-            'font-mono text-xs px-2 py-0.5 rounded',
-            item.correlation < 0 ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'
-          ]">
-            {{ item.correlation > 0 ? '+' : '' }}{{ item.correlation }}
+        <!-- Display Value (changePercent or correlation) -->
+        <div v-if="displayValue" class="ml-auto flex items-center gap-1.5">
+          <span class="text-[10px] font-medium text-on-surface-variant uppercase">{{ displayLabel }}</span>
+          <span :class="['font-mono text-xs px-2 py-0.5 rounded', displayValueColor]">
+            {{ displayValue }}
           </span>
         </div>
       </div>

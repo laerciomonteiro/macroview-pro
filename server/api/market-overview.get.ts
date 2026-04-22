@@ -6,116 +6,9 @@
  */
 
 import { defineEventHandler, createError } from 'h3'
-import type { 
-  ApiResponse, 
-  MarketOverview, 
-  CurrencyData, 
-  RiskIndicatorData, 
-  CommodityData, 
-  BrazilFlowData, 
-  TreasuryData 
-} from '../types/market'
-import { withCache, setCacheHeaders } from '../utils/cache'
-
-// Cache TTL in milliseconds (60 seconds)
-const CACHE_TTL = 60000
-
-/**
- * Fetch all market data in parallel with graceful degradation
- * Uses Promise.allSettled to ensure partial failures don't break the entire response
- */
-async function fetchAllMarketData(): Promise<MarketOverview> {
-  // Define all fetcher functions
-  const fetchers = {
-    currencies: () => $fetch<ApiResponse<CurrencyData[]>>('/api/currencies'),
-    riskIndicators: () => $fetch<ApiResponse<RiskIndicatorData>>('/api/risk-indicators'),
-    commodities: () => $fetch<ApiResponse<CommodityData[]>>('/api/commodities'),
-    brazilFlow: () => $fetch<ApiResponse<BrazilFlowData>>('/api/brazil-flow'),
-    treasuries: () => $fetch<ApiResponse<TreasuryData[]>>('/api/treasuries')
-  }
-  
-  // Execute all fetchers in parallel using Promise.allSettled
-  const results = await Promise.allSettled([
-    fetchers.currencies(),
-    fetchers.riskIndicators(),
-    fetchers.commodities(),
-    fetchers.brazilFlow(),
-    fetchers.treasuries()
-  ])
-  
-  // Parse results with graceful degradation
-  const [
-    currenciesResult,
-    riskIndicatorsResult,
-    commoditiesResult,
-    brazilFlowResult,
-    treasuriesResult
-  ] = results
-  
-  // Extract data or use defaults
-  const currencies = currenciesResult.status === 'fulfilled' 
-    ? (currenciesResult.value.data || [])
-    : []
-  
-   const riskIndicators: RiskIndicatorData = riskIndicatorsResult.status === 'fulfilled'
-    ? (riskIndicatorsResult.value.data || {
-        vix: { price: 0, previousClose: 0, change: 0, changePercent: 0 },
-        dxy: { price: 0, previousClose: 0, change: 0, changePercent: 0 },
-        interpretation: 'Cautela' as const
-      })
-    : {
-        vix: { price: 0, previousClose: 0, change: 0, changePercent: 0 },
-        dxy: { price: 0, previousClose: 0, change: 0, changePercent: 0 },
-        interpretation: 'Cautela' as const
-      }
-  
-  const commodities = commoditiesResult.status === 'fulfilled'
-    ? (commoditiesResult.value.data || [])
-    : []
-  
-  const brazilFlow: BrazilFlowData = brazilFlowResult.status === 'fulfilled'
-    ? (brazilFlowResult.value.data || {
-        symbol: 'EWZ',
-        name: 'iShares MSCI Brazil ETF',
-        price: 0,
-        change: 0,
-        changePercent: 0,
-        source: 'unavailable'
-      })
-    : {
-        symbol: 'EWZ',
-        name: 'iShares MSCI Brazil ETF',
-        price: 0,
-        change: 0,
-        changePercent: 0,
-        source: 'unavailable'
-      }
-  
-  const treasuries = treasuriesResult.status === 'fulfilled'
-    ? (treasuriesResult.value.data || [])
-    : []
-  
-  // Log any failures for debugging
-  const failures = results
-    .filter(r => r.status === 'rejected')
-    .map((_, i) => Object.keys(fetchers)[i])
-  
-  if (failures.length > 0) {
-    console.warn('[/api/market-overview] Partial failures in:', failures.join(', '))
-  }
-  
-  const now = Date.now()
-  
-  return {
-    currencies,
-    riskIndicators,
-    commodities,
-    brazilFlow,
-    treasuries,
-    fetchedAt: now,
-    cacheExpiry: now + CACHE_TTL
-  }
-}
+import type { ApiResponse, MarketOverview } from '../types/market'
+import { setCacheHeaders } from '../utils/cache'
+import { getCachedMarketOverview } from '../utils/marketData'
 
 /**
  * GET /api/market-overview
@@ -135,11 +28,8 @@ export default defineEventHandler(async (event) => {
   setCacheHeaders(event, 60)
   
   try {
-    const marketData = await withCache<MarketOverview>(
-      'market-overview:consolidated',
-      fetchAllMarketData,
-      CACHE_TTL
-    )
+    // Use shared cached function from marketData service
+    const marketData = await getCachedMarketOverview()
     
     if (!marketData) {
       throw createError({

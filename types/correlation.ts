@@ -17,6 +17,7 @@ export interface CorrelationItem {
   impactWinStrength?: number  // 1 or 2 for strength
   description: string    // Detailed explanation
   correlation?: number   // -1 to 1 correlation value
+  changePercent?: number // Real price change percentage (e.g., -0.27)
 }
 
 /**
@@ -74,6 +75,10 @@ export interface CurrentMarketData {
   scenario: 'Risk-On' | 'Risk-Off' | 'Neutro'
   vixChange: number
   dxyChange: number
+  goldChange: number   // Gold price change percent
+  brentChange: number  // Brent price change percent
+  ewzPrice: number     // EWZ ETF price
+  ewzChange: number    // EWZ ETF change percent
 }
 
 export interface CorrelationData {

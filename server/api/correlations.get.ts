@@ -12,23 +12,8 @@ import type {
   ChartDataPoint,
   CurrentMarketData
 } from '~/types/correlation'
-
-// Determine market scenario based on VIX and DXY
-// NOVOS LIMIARES: VIX > 15 = Risk-Off, VIX < 15 + VIX DECRESCENDO -7% = Risk-On
-function determineScenario(vix: number, dxy: number, vixChangePercent: number = 0): 'Risk-On' | 'Risk-Off' | 'Neutro' {
-  // Risk-On: VIX < 15 e variação DECRESCENTE >= 7% (caindo = menos medo)
-  if (vix < 15 && vixChangePercent <= -7) {
-    return 'Risk-On'
-  }
-  
-  // Risk-Off: VIX > 15 (novo limiar)
-  if (vix > 15) {
-    return 'Risk-Off'
-  }
-  
-  // Neutro: VIX < 15 sem variação suficiente ou outras condições
-  return 'Neutro'
-}
+import { determineScenarioType } from '~/utils/scenario'
+import { getCachedMarketOverview, extractCorrelationMarketData } from '../utils/marketData'
 
 interface YahooChartResult {
   timestamps: number[]
@@ -165,56 +150,22 @@ async function fetchRealGoldDxyData(): Promise<{ gold: ChartDataPoint[]; dxy: Ch
 }
 
 /**
- * Fetch real market data from market-overview API
+ * Fetch real market data from market-overview service
+ * Uses direct function call instead of $fetch to avoid self-referential HTTP issues
  */
 async function fetchRealMarketData(): Promise<CurrentMarketData> {
   try {
-    const response = await $fetch<{ success: boolean; data: any }>('http://localhost:3000/api/market-overview', {
-      headers: {
-        'Cache-Control': 'no-cache'
-      }
-    })
+    // Use the shared market data service - avoids self-referential HTTP call
+    const marketData = await getCachedMarketOverview()
     
-    const marketData = response.data
+    // Extract all correlation-relevant data using the helper function
+    const extracted = extractCorrelationMarketData(marketData)
     
-    // Extract VIX value
-    const vix = marketData?.riskIndicators?.vix?.price || 0
-    const vixChange = marketData?.riskIndicators?.vix?.change || 0
-    
-    // Extract DXY value
-    const dxy = marketData?.riskIndicators?.dxy?.price || 0
-    const dxyChange = marketData?.riskIndicators?.dxy?.change || 0
-    
-    // Extract Gold price (find in commodities array)
-    const goldEntry = marketData?.commodities?.find((c: any) => c.name === 'Gold' || c.name === 'XAU/USD')
-    const gold = goldEntry?.price || 0
-    
-    // Extract Brent price (find in commodities array)
-    const brentEntry = marketData?.commodities?.find((c: any) => c.name === 'Brent Crude' || c.name === 'Brent')
-    const brent = brentEntry?.price || 0
-    
-    // NEW: Extract Iron Ore price
-    const ironOreEntry = marketData?.commodities?.find((c: any) => c.name === 'Iron Ore' || c.symbol === 'IRON')
-    const ironOre = ironOreEntry?.price || 0
-    
-    // NEW: Extract MXN (USD/MXN) from currencies
-    const mxmEntry = marketData?.currencies?.find((c: any) => c.code === 'USD' && c.codein === 'MXN')
-    const mxm = mxmEntry?.bid || 0
-    const mxmChange = mxmEntry?.pctChange || 0
-    
-    const scenario = determineScenario(vix, dxy, vixChange)
+    const scenario = determineScenarioType(extracted.vix, extracted.dxy, extracted.vixChange)
     
     return {
-      vix,
-      dxy,
-      gold,
-      brent,
-      ironOre,
-      mxm,
-      mxmChange,
-      scenario,
-      vixChange,
-      dxyChange
+      ...extracted,
+      scenario
     }
   } catch (error) {
     console.error('[/api/correlations] Failed to fetch market data:', error)
@@ -229,7 +180,11 @@ async function fetchRealMarketData(): Promise<CurrentMarketData> {
       mxmChange: 0,
       scenario: 'Neutro',
       vixChange: 0,
-      dxyChange: 0
+      dxyChange: 0,
+      goldChange: 0,
+      brentChange: 0,
+      ewzPrice: 0,
+      ewzChange: 0
     }
   }
 }
@@ -266,6 +221,7 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       impactWin: 'up',
       impactWdo: 'down',
       correlation: -0.92,
+      changePercent: currentData.dxyChange,
       description: 'Índice que mede a força do dólar americano contra uma cesta de moedas. Quando cai, dólar fraco globalmente favorece mercados emergentes como o Brasil.'
     },
     {
@@ -278,6 +234,7 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       impactWdo: 'down',
       impactWinStrength: 2,
       correlation: 0.85,
+      changePercent: currentData.ewzChange,
       description: 'ETF que replica o índice MSCI Brazil. Sobe quando há fluxo estrangeiro entrando no Brasil. Indicador importante para WIN.'
     },
     {
@@ -289,6 +246,7 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       impactWin: currentData.dxyChange < 0 ? 'up' : 'down',
       impactWdo: 'down',
       correlation: -0.78,
+      changePercent: currentData.goldChange,
       description: 'Ouro tem correlação inversa com DXY. Quando Ouro sobe e DXY cai, sinaliza dólar fraco global, favorável ao WDO. CORRELAÇÃO ATIVA: Gold subindo + DXY caindo = Strong Risk-On confirmation.'
     },
     {
@@ -300,6 +258,7 @@ export default defineEventHandler(async (event): Promise<CorrelationApiResponse>
       impactWin: 'up',
       impactWdo: 'down',
       correlation: 0.65,
+      changePercent: currentData.brentChange,
       description: 'Petróleo Brent acima de $80 combinado com minério acima de $100 e DXY estável indica ambiente favorável para WIN. Brent em alta = pressão positiva em PETR4.'
     },
     {

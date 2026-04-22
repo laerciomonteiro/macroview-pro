@@ -1,10 +1,16 @@
 <script setup lang="ts">
+import { useMarketStore } from '~/stores/market'
 import type { CorrelationApiResponse, CorrelationItem, ScenarioDetail, ChartDataPoint, CurrentMarketData } from '~/types/correlation'
+
+const marketStore = useMarketStore()
 
 // Fetch correlation data from API
 const { data: apiData, pending, error } = await useFetch<CorrelationApiResponse>('/api/correlations', {
   key: 'correlations-data'
 })
+
+// Scenario from centralized store (same as dashboard)
+const scenarioResult = computed(() => marketStore.scenario)
 
 // Destructure with defaults for reactive binding
 const correlations = computed<CorrelationItem[]>(() => apiData.value?.data?.correlations || [])
@@ -34,14 +40,9 @@ const lastUpdate = computed(() => {
   })
 })
 
-// Determine scenario color
-const scenarioColor = computed(() => {
-  switch (currentData.value.scenario) {
-    case 'Risk-On': return '#4edea3'
-    case 'Risk-Off': return '#ffb2b7'
-    default: return '#f9bd22'
-  }
-})
+// Scenario color from store (consistent with dashboard)
+const scenarioColor = computed(() => scenarioResult.value?.color || '#f9bd22')
+const scenarioType = computed(() => scenarioResult.value?.scenario || 'Neutro')
 
 // VIX icon based on value
 const vixIcon = computed(() => {
@@ -80,7 +81,7 @@ useHead({
         <div class="flex items-center gap-4">
           <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container border border-outline/10">
             <div class="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span class="text-xs font-mono text-on-surface-variant">Última Atualização: {{ lastUpdate }}</span>
+            <span class="text-xs font-mono text-on-surface-variant">Atualização a cada 5 min • Última: {{ lastUpdate }}</span>
           </div>
         </div>
       </div>
@@ -155,7 +156,7 @@ useHead({
             <div class="mt-3 pt-3 border-t border-outline/10">
               <div class="flex items-center justify-between text-xs">
                 <span class="text-on-surface-variant">Cenário:</span>
-                <span class="font-bold" :style="{ color: scenarioColor }">{{ currentData.scenario }}</span>
+                <span class="font-bold" :style="{ color: scenarioColor }">{{ scenarioType }}</span>
               </div>
               <div class="flex items-center justify-between text-xs mt-1">
                 <span class="text-on-surface-variant">DXY:</span>
@@ -211,13 +212,6 @@ useHead({
 
       <!-- Section 4: Interactive Scenarios -->
       <section>
-        <div class="mb-6">
-          <h2 class="text-lg font-bold text-on-surface">Cenários Interativos</h2>
-          <p class="text-xs text-on-surface-variant">
-            Selecione um cenário para ver condições detalhadas e resultado esperado
-          </p>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <ScenarioDetailCard
             v-for="(scenario, index) in scenarios"
@@ -229,13 +223,6 @@ useHead({
 
       <!-- Section 5: Additional Insights -->
       <section class="pt-4">
-        <div class="mb-6">
-          <h2 class="text-lg font-bold text-on-surface">Insights de Trading</h2>
-          <p class="text-xs text-on-surface-variant">
-            Informações práticas baseadas nas correlações
-          </p>
-        </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <InsightCard
             title="VIX como Termômetro"
