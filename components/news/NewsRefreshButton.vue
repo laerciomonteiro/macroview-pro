@@ -73,7 +73,7 @@ const handleRefresh = async () => {
   refreshMessage.value = null
   
   try {
-    const response = await $fetch<NewsApiResponse>('/api/news/latest?refresh=true', { method: 'POST' })
+    const response = await $fetch<NewsApiResponse>('/api/news/latest?refresh=true')
     lastUpdated.value = new Date()
 
     // Check if news actually changed before triggering AI refresh
