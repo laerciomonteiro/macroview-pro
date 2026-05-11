@@ -9,6 +9,7 @@ import { defineEventHandler, createError } from 'h3'
 import type { ApiResponse, CommodityData, TwelveDataPriceResponse } from '../types/market'
 import { fetchYahooQuote, YAHOO_SYMBOLS } from '../utils/yahooFetcher'
 import { withCache, setCacheHeaders } from '../utils/cache'
+import { useRuntimeConfig } from '#imports'
 
 // Cache TTL in milliseconds (60 seconds)
 const CACHE_TTL = 60000
@@ -30,6 +31,9 @@ interface CommodityDef {
  * Standard commodities to fetch from Yahoo Finance
  * Including VALE as iron ore proxy
  * Also including BTC (Bitcoin) and WIN (Ibovespa Mini)
+ * 
+ * Note: Brazilian futures contracts (WINM24, WDOM24) may expire and return 404.
+ * We include them but handle missing data gracefully.
  */
 const YAHOO_COMMODITIES: CommodityDef[] = [
   { symbol: YAHOO_SYMBOLS.BRENT, name: 'Brent Crude', unit: 'USD/bbl' },
@@ -40,7 +44,44 @@ const YAHOO_COMMODITIES: CommodityDef[] = [
 ]
 
 /**
- * Fetch commodity data from Yahoo Finance
+ * Brazilian futures contract patterns
+ * These symbols follow B3 naming: WDO (Dólar), WIN (Índice) + M (Month) + YY (Year)
+ */
+const FUTURES_PATTERNS = [
+  /^WIN(M\d{2})?$/,  // WIN, WINM24, WINQ24, etc.
+  /^WDO(M\d{2})?$/   // WDO, WDOM24, WDOQ24, etc.
+]
+
+/**
+ * Check if symbol is a Brazilian futures contract
+ */
+function isFuturesContract(symbol: string): boolean {
+  return FUTURES_PATTERNS.some(pattern => pattern.test(symbol))
+}
+
+/**
+ * Generate alternative futures symbols (next month contracts)
+ * For when the current month contract is not available
+ */
+function getFuturesAlternatives(symbol: string): string[] {
+  if (!isFuturesContract(symbol)) return []
+  
+  const alternatives: string[] = []
+  
+  // Try next month patterns: M (next month), Q (quarter), month numbers
+  const suffixes = ['M25', 'M26', 'Q25', 'Q26']
+  
+  for (const suffix of suffixes) {
+    const base = symbol.replace(/M\d{2}|Q\d{2}/, '')
+    alternatives.push(`${base}${suffix}`)
+  }
+  
+  return alternatives
+}
+
+/**
+ * Fetch commodity data from Yahoo Finance with graceful 404 handling
+ * For futures contracts that may be expired, attempts alternatives
  */
 async function fetchCommoditiesFromYahoo(): Promise<CommodityData[]> {
   const commodities: CommodityData[] = []
@@ -50,8 +91,9 @@ async function fetchCommoditiesFromYahoo(): Promise<CommodityData[]> {
     YAHOO_COMMODITIES.map(c => fetchYahooQuote(c.symbol))
   )
   
-  // Process results
-  results.forEach((result, index) => {
+  // Process results sequentially to handle futures alternatives
+  for (let index = 0; index < YAHOO_COMMODITIES.length; index++) {
+    const result = results[index]
     const commodity = YAHOO_COMMODITIES[index]
     
     if (result.status === 'fulfilled' && result.value) {
@@ -66,9 +108,47 @@ async function fetchCommoditiesFromYahoo(): Promise<CommodityData[]> {
         source: 'yahoo'
       })
     } else {
-      console.warn(`[/api/commodities] Failed to fetch ${commodity.name}:`, result.status)
+      const errorMessage = result.status === 'rejected' 
+        ? String(result.reason?.message || result.reason) 
+        : 'No data returned'
+      
+      // Handle futures contract 404 - try alternatives
+      if (isFuturesContract(commodity.symbol)) {
+        console.warn(`[/api/commodities] Futures contract ${commodity.symbol} unavailable (${errorMessage}). Trying alternatives...`)
+        
+        const alternatives = getFuturesAlternatives(commodity.symbol)
+        let foundAlternative = false
+        
+        for (const altSymbol of alternatives) {
+          try {
+            const altQuote = await fetchYahooQuote(altSymbol)
+            if (altQuote) {
+              console.log(`[/api/commodities] Using ${altSymbol} as alternative for ${commodity.symbol}`)
+              commodities.push({
+                name: commodity.name,
+                symbol: altSymbol,
+                price: altQuote.price,
+                change: altQuote.change,
+                changePercent: altQuote.changePercent,
+                unit: commodity.unit,
+                source: 'yahoo'
+              })
+              foundAlternative = true
+              break
+            }
+          } catch {
+            console.warn(`[/api/commodities] Alternative ${altSymbol} also unavailable`)
+          }
+        }
+        
+        if (!foundAlternative) {
+          console.warn(`[/api/commodities] All alternatives for ${commodity.symbol} failed. Skipping this commodity.`)
+        }
+      } else {
+        console.warn(`[/api/commodities] Failed to fetch ${commodity.name}:`, result.status)
+      }
     }
-  })
+  }
   
   return commodities
 }
@@ -94,11 +174,15 @@ async function fetchTwelveDataXAU(): Promise<CommodityData | null> {
     })
     
     if (response && response.price) {
-      // Twelve Data doesn't provide change percent, so we estimate
+      // Twelve Data returns price as string, convert to number
+      const priceValue = typeof response.price === 'string' 
+        ? parseFloat(response.price) 
+        : response.price
+      
       return {
         name: 'Gold (XAU/USD)',
         symbol: 'XAU/USD',
-        price: parseFloat(response.price),
+        price: priceValue,
         change: 0,
         changePercent: 0,
         unit: 'USD/oz',

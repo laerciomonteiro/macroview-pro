@@ -11,6 +11,19 @@ import { useRuntimeConfig } from '#imports'
 // Gemini API configuration
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent'
 
+// Rate limiting configuration
+const MAX_RETRIES = 3
+const BASE_RETRY_DELAY_MS = 1000
+const MAX_RETRY_DELAY_MS = 16000
+const RATE_LIMIT_STATUS = 429
+
+// Cache for analysis results (avoid redundant API calls)
+let analysisCache: {
+  text: string
+  timestamp: number
+} | null = null
+const CACHE_TTL_MS = 30000 // 30 seconds cache
+
 // Fallback analysis when API fails
 const FALLBACK_ANALYSIS = `Análise de mercado temporariamente indisponível. 
 
@@ -119,7 +132,29 @@ Formato de saída livre mas MÁXIMO 400 palavras.`
 }
 
 /**
- * Call Gemini API with the given prompt
+ * Calculate exponential backoff delay with jitter
+ */
+function getRetryDelay(attempt: number): number {
+  const exponentialDelay = Math.min(
+    BASE_RETRY_DELAY_MS * Math.pow(2, attempt),
+    MAX_RETRY_DELAY_MS
+  )
+  // Add jitter (±25%) to prevent thundering herd
+  const jitter = exponentialDelay * 0.25 * (Math.random() * 2 - 1)
+  return Math.round(exponentialDelay + jitter)
+}
+
+/**
+ * Check if response indicates rate limiting
+ */
+function isRateLimited(response: any): boolean {
+  return response?.error?.code === RATE_LIMIT_STATUS || 
+         response?.error?.message?.includes('rate limit') ||
+         response?.error?.message?.includes('quota')
+}
+
+/**
+ * Call Gemini API with exponential backoff retry
  */
 async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
   const url = `${GEMINI_API_URL}?key=${apiKey}`
@@ -138,72 +173,113 @@ async function callGeminiAPI(prompt: string, apiKey: string): Promise<string> {
     }
   }
 
-  const response = await $fetch<{
-    candidates?: Array<{
-      content?: {
-        role?: string
-        parts?: Array<{
-          text?: string
-        }>
-      }
-      finishReason?: string
-    }>
-    usageMetadata?: {
-      thoughtsTokenCount?: number
-    }
-    error?: {
-      message: string
-      code: number
-    }
-  }>(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: requestBody
-  })
-
-  // Handle API errors
-  if (response.error) {
-    throw new Error(`Gemini API error: ${response.error.message} (code: ${response.error.code})`)
-  }
-
-  // Extract the generated text
-  const candidates = response.candidates
-
-  // Debug logging for troubleshooting
-  console.log('[Gemini Service] Raw response structure:', JSON.stringify(response, null, 2))
-
-  if (!candidates || candidates.length === 0) {
-    console.error('[Gemini Service] No candidates in response. Full response:', response)
-    throw new Error('No response from Gemini API')
-  }
-
-  // Extract text using the correct Gemini 2.5 Pro response structure:
-  // response.candidates[0].content.parts[0].text
-  const candidate = candidates[0]
+  let lastError: Error | null = null
   
-  // Check finish reason
-  const finishReason = candidate?.finishReason
-  if (finishReason === 'MAX_TOKENS') {
-    console.warn('[Gemini Service] Response truncated due to MAX_TOKENS - may be incomplete')
-  } else if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
-    throw new Error(`Gemini API blocked response: ${finishReason}`)
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const response = await $fetch<{
+        candidates?: Array<{
+          content?: {
+            role?: string
+            parts?: Array<{
+              text?: string
+            }>
+          }
+          finishReason?: string
+        }>
+        usageMetadata?: {
+          thoughtsTokenCount?: number
+        }
+        error?: {
+          message: string
+          code: number
+        }
+      }>(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: requestBody
+      })
+
+      // Handle rate limiting with exponential backoff
+      if (isRateLimited(response)) {
+        const retryAfter = getRetryDelay(attempt)
+        console.warn(`[Gemini Service] Rate limited, retrying in ${retryAfter}ms (attempt ${attempt + 1}/${MAX_RETRIES})`)
+        
+        if (attempt < MAX_RETRIES - 1) {
+          await sleep(retryAfter)
+          continue
+        }
+        
+        throw new Error('Gemini API rate limit exceeded. Por favor, aguarde alguns minutos antes de tentar novamente.')
+      }
+
+      // Handle API errors
+      if (response.error) {
+        throw new Error(`Gemini API error: ${response.error.message} (code: ${response.error.code})`)
+      }
+
+      // Extract the generated text
+      const candidates = response.candidates
+
+      if (!candidates || candidates.length === 0) {
+        console.error('[Gemini Service] No candidates in response. Full response:', response)
+        throw new Error('No response from Gemini API')
+      }
+
+      // Extract text using the correct Gemini 2.5 Pro response structure:
+      const candidate = candidates[0]
+      
+      // Check finish reason
+      const finishReason = candidate?.finishReason
+      if (finishReason === 'MAX_TOKENS') {
+        console.warn('[Gemini Service] Response truncated due to MAX_TOKENS - may be incomplete')
+      } else if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
+        throw new Error(`Gemini API blocked response: ${finishReason}`)
+      }
+
+      // Try to extract text from parts
+      const parts = candidate?.content?.parts
+      const text = parts?.[0]?.text
+
+      if (!text) {
+        console.error('[Gemini Service] Invalid response format. Expected structure:')
+        console.error('[Gemini Service] { candidates: [{ content: { parts: [{ text: "..." }] } }] }')
+        console.error('[Gemini Service] Actual candidate content:', candidate?.content)
+        console.error('[Gemini Service] Finish reason:', finishReason)
+        throw new Error('Invalid response format from Gemini API')
+      }
+
+      return text
+    } catch (error: any) {
+      lastError = error
+      
+      // Don't retry on certain errors
+      if (error.message?.includes('Invalid response format') ||
+          error.message?.includes('blocked response') ||
+          error.message?.includes('rate limit exceeded')) {
+        throw error
+      }
+      
+      // Retry on network errors or other issues
+      if (attempt < MAX_RETRIES - 1) {
+        const retryDelay = getRetryDelay(attempt)
+        console.warn(`[Gemini Service] Request failed (attempt ${attempt + 1}/${MAX_RETRIES}), retrying in ${retryDelay}ms:`, error.message)
+        await sleep(retryDelay)
+        continue
+      }
+    }
   }
+  
+  throw lastError || new Error('Gemini API request failed after all retries')
+}
 
-  // Try to extract text from parts - handle various response structures
-  const parts = candidate?.content?.parts
-  const text = parts?.[0]?.text
-
-  if (!text) {
-    console.error('[Gemini Service] Invalid response format. Expected structure:')
-    console.error('[Gemini Service] { candidates: [{ content: { parts: [{ text: "..." }] } }] }')
-    console.error('[Gemini Service] Actual candidate content:', candidate?.content)
-    console.error('[Gemini Service] Finish reason:', finishReason)
-    throw new Error('Invalid response format from Gemini API')
-  }
-
-  return text
+/**
+ * Sleep utility for async delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 /**
@@ -223,19 +299,36 @@ export async function generateMarketAnalysis(marketData: MarketDataForAnalysis):
     return FALLBACK_ANALYSIS
   }
 
+  // Check cache first to avoid redundant API calls
+  const now = Date.now()
+  if (analysisCache && (now - analysisCache.timestamp) < CACHE_TTL_MS) {
+    console.log('[Gemini Service] Returning cached analysis')
+    return analysisCache.text
+  }
+
   try {
     const prompt = buildAnalysisPrompt(marketData)
     const analysis = await callGeminiAPI(prompt, apiKey)
+    
+    // Store in cache
+    analysisCache = {
+      text: analysis,
+      timestamp: now
+    }
     
     console.log('[Gemini Service] Analysis generated successfully')
     return analysis
   } catch (error: any) {
     console.error('[Gemini Service] API call failed:', error.message)
     
-    // Return fallback analysis on error
+    // Return fallback analysis on error - user-friendly message without exposing HTTP codes
+    const userFriendlyMessage = error.message?.includes('rate limit')
+      ? 'Sistema temporariamente sobrecarregado. A análise será restaurada automaticamente em breve.'
+      : 'Estamos enfrentando dificuldades com a análise automatizada. Tente novamente em alguns minutos.'
+    
     return `${FALLBACK_ANALYSIS}
 
-⚠️ Nota: A análise automatizada encontrou um erro: ${error.message || 'Falha na conexão com o Gemini'}.`
+📋 Nota: ${userFriendlyMessage}`
   }
 }
 

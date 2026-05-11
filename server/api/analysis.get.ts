@@ -8,10 +8,10 @@
  * Cached for 5 minutes to avoid excessive API calls
  */
 
-import { defineEventHandler, createError } from 'h3'
+import { defineEventHandler, createError, getQuery } from 'h3'
 import type { ApiResponse, MarketOverview } from '../types/market'
 import type { NewsApiResponse } from '../../types/news'
-import { withCache, setCacheHeaders } from '../utils/cache'
+import { withCache, setCacheHeaders, clearCache, getFromCache, setCache } from '../utils/cache'
 import { generateMarketAnalysis, validateMarketData, type MarketDataForAnalysis } from '../utils/gemini'
 import { parseMarkdown } from '../utils/markdown'
 
@@ -298,34 +298,56 @@ export default defineEventHandler(async (event) => {
   // Set cache headers (5 minutes)
   setCacheHeaders(event, 300)
 
+  // Check if refresh is explicitly requested (bypass cache)
+  const query = getQuery(event)
+  const forceRefresh = query.refresh === 'true'
+  
   try {
-    // Try to get cached analysis first
-    const cachedAnalysis = await withCache<{
-      analysis: string
-      generatedAt: number
-      scenario: 'Risk-On' | 'Risk-Off' | 'Neutro'
-    }>(
-      CACHE_KEY,
-      fetchFreshAnalysis,
-      CACHE_TTL
-    )
-
-    if (!cachedAnalysis) {
-      throw createError({
-        statusCode: 502,
-        statusMessage: 'Failed to generate market analysis'
-      })
+    let cachedAnalysis: { analysis: string; generatedAt: number; scenario: 'Risk-On' | 'Risk-Off' | 'Neutro' } | null = null
+    
+    // Only check cache if NOT doing a force refresh
+    if (!forceRefresh) {
+      cachedAnalysis = await getFromCache<{
+        analysis: string
+        generatedAt: number
+        scenario: 'Risk-On' | 'Risk-Off' | 'Neutro'
+      }>(CACHE_KEY)
     }
+    
+    // Use cached data if available and not force refreshing
+    if (cachedAnalysis) {
+      // Parse markdown to HTML before returning
+      const parsedAnalysis = parseMarkdown(cachedAnalysis.analysis)
 
+      const response: AnalysisResponse = {
+        success: true,
+        data: {
+          analysis: parsedAnalysis,
+          generatedAt: cachedAnalysis.generatedAt,
+          scenario: cachedAnalysis.scenario
+        },
+        timestamp: Date.now()
+      }
+
+      return response
+    }
+    
+    // No cache or force refresh - fetch fresh analysis
+    console.log('[Analysis] Fetching fresh analysis (forceRefresh=' + forceRefresh + ')')
+    const freshAnalysis = await fetchFreshAnalysis()
+    
+    // Store in cache for future requests (5 minutes TTL)
+    setCache(CACHE_KEY, freshAnalysis, CACHE_TTL)
+    
     // Parse markdown to HTML before returning
-    const parsedAnalysis = parseMarkdown(cachedAnalysis.analysis)
+    const parsedAnalysis = parseMarkdown(freshAnalysis.analysis)
 
     const response: AnalysisResponse = {
       success: true,
       data: {
         analysis: parsedAnalysis,
-        generatedAt: cachedAnalysis.generatedAt,
-        scenario: cachedAnalysis.scenario
+        generatedAt: freshAnalysis.generatedAt,
+        scenario: freshAnalysis.scenario
       },
       timestamp: Date.now()
     }

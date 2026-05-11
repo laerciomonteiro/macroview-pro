@@ -24,7 +24,7 @@ interface AnalysisApiResponse {
   timestamp: number
 }
 
-// Fetch AI analysis from Gemini
+// Fetch AI analysis from Gemini - initial load uses cache for performance
 const { data: analysisResponse, pending: analysisPending, error: analysisError, refresh: refreshAnalysis } = await useFetch<AnalysisApiResponse>('/api/analysis', {
   key: 'market-analysis',
   lazy: true,
@@ -42,18 +42,40 @@ const analysisData = computed(() => {
   }
 })
 
-// Handle analysis refresh
-const handleAnalysisRefresh = () => {
-  refreshAnalysis()
+// Handle analysis refresh - bypass server cache by using refresh=true query param
+const handleAnalysisRefresh = async () => {
+  if (analysisPending.value) return
+  
+  analysisPending.value = true
+  try {
+    // Direct fetch with cache-busting query param
+    const result = await $fetch<AnalysisApiResponse>('/api/analysis?refresh=true')
+    if (result.success && result.data) {
+      // Update the reactive data directly
+      analysisResponse.value = result
+    }
+  } catch (err) {
+    console.error('[Dashboard] Analysis refresh failed:', err)
+  } finally {
+    analysisPending.value = false
+  }
 }
 
 // News analysis sync - auto-refresh AI when news is updated
 const newsSync = useNewsAnalysisSync()
 
 // Watch for news refresh trigger
-watch(() => newsSync.shouldRefreshAnalysis.value, (shouldRefresh) => {
+watch(() => newsSync.shouldRefreshAnalysis.value, async (shouldRefresh) => {
   if (shouldRefresh && !analysisPending.value) {
-    refreshAnalysis()
+    // Direct fetch with cache-busting to get fresh analysis
+    try {
+      const result = await $fetch<AnalysisApiResponse>('/api/analysis?refresh=true')
+      if (result.success && result.data) {
+        analysisResponse.value = result
+      }
+    } catch (err) {
+      console.error('[Dashboard] News-triggered analysis refresh failed:', err)
+    }
   }
 })
 
